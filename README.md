@@ -137,6 +137,11 @@ The latest live run returned a `hold` decision because the public endpoint was
 healthy. Atlas does not manufacture failures to demonstrate the escalation
 path.
 
+`GET /v1/agent/status` re-verifies the retained agent signatures and exposes
+the current policy hash, most recent signed observation, and deterministic
+gate to the dashboard. It is status-only: it does not reserve an incident or
+contact the paid x402 resource.
+
 ## On-chain contribution record
 
 `contracts/atlas-epoch-credits` is an executable ink! contract for immutable
