@@ -38,6 +38,34 @@ async function identity() {
   return created;
 }
 
+function conflictError() {
+  const error = new Error("This Sentinel ID is already registered with a different device key.");
+  error.code = "sentinel_identity_conflict";
+  return error;
+}
+
+async function registerDevice(config, device) {
+  const response = await fetch(new URL("/v1/sentinels/register", config.backendUrl), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ sentinelId: device.sentinelId, publicKeyJwk: device.sentinelPublicJwk }),
+  });
+  if (response.status === 409) throw conflictError();
+  if (!response.ok) throw new Error(`Sentinel registration failed: ${response.status}`);
+}
+
+async function repairIdentity() {
+  await chrome.storage.local.remove(["sentinelId", "sentinelPublicJwk", "sentinelPrivateJwk", "linkedWallet", "linkCode", "lastCheck", "lastError", "lastErrorCode"]);
+  await chrome.storage.local.set({ enabled: false });
+  await chrome.alarms.clear(ALARM_NAME);
+  const device = await identity();
+  return { ok: true, sentinelId: device.sentinelId };
+}
+
+function responseError(error) {
+  return { error: error.message ?? "Unexpected Sentinel error", code: error.code ?? "unknown_error" };
+}
+
 function openRpc(endpoint) {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(endpoint);
@@ -113,12 +141,7 @@ async function registerAndSubmit() {
   const config = await configuration();
   if (!config.enabled) return { skipped: "sentinel_paused" };
   const device = await identity();
-  const register = await fetch(new URL("/v1/sentinels/register", config.backendUrl), {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ sentinelId: device.sentinelId, publicKeyJwk: device.sentinelPublicJwk }),
-  });
-  if (!register.ok && register.status !== 201) throw new Error(`Sentinel registration failed: ${register.status}`);
+  await registerDevice(config, device);
   const probe = await samplePortaldot(config.endpoint, config.expectedGenesis);
   const observedAt = new Date().toISOString();
   const privateKey = await crypto.subtle.importKey(
@@ -142,11 +165,7 @@ async function registerAndSubmit() {
 async function linkWallet(linkCode) {
   const config = await configuration();
   const device = await identity();
-  const register = await fetch(new URL("/v1/sentinels/register", config.backendUrl), {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ sentinelId: device.sentinelId, publicKeyJwk: device.sentinelPublicJwk }),
-  });
-  if (!register.ok && register.status !== 201) throw new Error(`Sentinel registration failed: ${register.status}`);
+  await registerDevice(config, device);
   const response = await fetch(new URL("/v1/sentinels/link", config.backendUrl), {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ sentinelId: device.sentinelId, linkCode }),
@@ -167,24 +186,42 @@ async function schedule() {
 chrome.runtime.onInstalled.addListener(schedule);
 chrome.runtime.onStartup.addListener(schedule);
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM_NAME) registerAndSubmit().catch((error) => chrome.storage.local.set({ lastError: error.message }));
+  if (alarm.name === ALARM_NAME) registerAndSubmit().catch((error) => chrome.storage.local.set({ lastError: error.message, lastErrorCode: error.code ?? "unknown_error" }));
 });
-chrome.action.onClicked.addListener(() => registerAndSubmit().catch((error) => chrome.storage.local.set({ lastError: error.message })));
+chrome.action.onClicked.addListener(() => registerAndSubmit().catch((error) => chrome.storage.local.set({ lastError: error.message, lastErrorCode: error.code ?? "unknown_error" })));
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "atlas.configure") {
     chrome.storage.local.set(message.config).then(schedule).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (message?.type === "atlas.run-now") {
-    registerAndSubmit().then(sendResponse).catch((error) => sendResponse({ error: error.message }));
+    registerAndSubmit().then(async (result) => {
+      await chrome.storage.local.remove(["lastError", "lastErrorCode"]);
+      sendResponse(result);
+    }).catch(async (error) => {
+      const result = responseError(error);
+      await chrome.storage.local.set({ lastError: result.error, lastErrorCode: result.code });
+      sendResponse(result);
+    });
     return true;
   }
   if (message?.type === "atlas.link-wallet") {
-    linkWallet(message.linkCode).then(sendResponse).catch((error) => sendResponse({ error: error.message }));
+    linkWallet(message.linkCode).then(async (result) => {
+      await chrome.storage.local.remove(["lastError", "lastErrorCode"]);
+      sendResponse(result);
+    }).catch(async (error) => {
+      const result = responseError(error);
+      await chrome.storage.local.set({ lastError: result.error, lastErrorCode: result.code });
+      sendResponse(result);
+    });
+    return true;
+  }
+  if (message?.type === "atlas.repair-identity") {
+    repairIdentity().then(sendResponse).catch((error) => sendResponse(responseError(error)));
     return true;
   }
   if (message?.type === "atlas.status") {
-    chrome.storage.local.get(["lastCheck", "lastError", "enabled", "intervalMinutes", "backendUrl", "sentinelId", "linkCode", "linkedWallet"]).then(sendResponse);
+    chrome.storage.local.get(["lastCheck", "lastError", "lastErrorCode", "enabled", "intervalMinutes", "backendUrl", "sentinelId", "linkCode", "linkedWallet", "theme"]).then(sendResponse);
     return true;
   }
 });

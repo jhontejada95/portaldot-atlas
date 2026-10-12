@@ -9,9 +9,9 @@
   <body>
     <main>
       <header>
-        <span class="mark"><img src="assets/atlas-titan.png" alt="" /></span>
-        <div><p>PORTALDOT ATLAS</p><h1>Sentinel <span>field node</span></h1></div>
-        <span id="state" class="state">Loading</span>
+        <span id="profileAvatar" class="profile-avatar" aria-hidden="true"><span></span></span>
+        <div class="identity-copy"><p>PORTALDOT ATLAS</p><h1 id="identityTitle">Your Sentinel</h1><div class="identity-meta"><span id="connectionState" class="connection-state">Checking connection</span><span id="state" class="state">Loading</span></div></div>
+        <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode"><span id="themeIcon" aria-hidden="true">☾</span></button>
       </header>
       <section class="status-card" aria-live="polite">
         <div class="status-label"><p class="label">Latest accepted evidence</p><span aria-hidden="true">♡</span></div>
@@ -25,6 +25,7 @@
         <label class="toggle"><input id="enabled" type="checkbox" /><span aria-hidden="true"></span><b>Enable scheduled live checks</b></label>
       </section>
       <p id="message" class="message"></p>
+      <button id="repairIdentity" class="repair-identity" type="button" hidden>Create a new device identity</button>
       <div class="actions"><button id="save" class="secondary">Save settings</button><button id="link" class="secondary">Link wallet</button><button id="run" class="primary">Run live check</button></div>
       <footer><span><b aria-hidden="true">⌁</b> Signed locally with P-256</span><span><b aria-hidden="true">◌</b> No browsing data collected</span></footer>
     </main>

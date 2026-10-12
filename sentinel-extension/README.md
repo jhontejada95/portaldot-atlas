@@ -18,6 +18,11 @@ local acceptance receipt. The packaged default is the public Atlas API; a
 participant can still choose a local backend for development. Load this folder
 as an unpacked Manifest V3 extension when running a manual test.
 
+If Atlas reports that a local device ID conflicts with a different registered
+key, Sentinel does not overwrite that identity. The popup offers an explicit
+repair action that creates a new local device identity, pauses checks, and
+requires a fresh wallet-link code.
+
 The live backend rejects unknown sentinel identities, stale observations,
 wrong-network data, and invalid device signatures before it adds anything to
 the evidence feed.

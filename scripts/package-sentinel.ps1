@@ -36,7 +36,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::OpenRead($resolvedOutputPath)
 try {
   $names = @($archive.Entries | ForEach-Object FullName)
-  foreach ($required in @("manifest.json", "background.js", "popup.html", "popup.js", "popup.css", "assets/atlas-titan.png")) {
+  foreach ($required in @("manifest.json", "background.js", "popup.html", "popup.js", "popup.css", "assets/atlas-titan.png", "assets/atlas-sentinel-icon.png")) {
     if ($names -notcontains $required) { throw "Packaged Sentinel archive is missing $required." }
   }
 } finally {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Portaldot Atlas Sentinel",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Runs user-authorized, signed Portaldot reliability checks. It never shares bandwidth or browsing data.",
   "minimum_chrome_version": "120",
   "permissions": ["alarms", "storage"],
@@ -19,16 +19,16 @@
     "default_title": "Portaldot Atlas Sentinel",
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "assets/atlas-titan.png",
-      "32": "assets/atlas-titan.png",
-      "48": "assets/atlas-titan.png",
-      "128": "assets/atlas-titan.png"
+      "16": "assets/atlas-sentinel-icon.png",
+      "32": "assets/atlas-sentinel-icon.png",
+      "48": "assets/atlas-sentinel-icon.png",
+      "128": "assets/atlas-sentinel-icon.png"
     }
   },
   "icons": {
-    "16": "assets/atlas-titan.png",
-    "32": "assets/atlas-titan.png",
-    "48": "assets/atlas-titan.png",
-    "128": "assets/atlas-titan.png"
+    "16": "assets/atlas-sentinel-icon.png",
+    "32": "assets/atlas-sentinel-icon.png",
+    "48": "assets/atlas-sentinel-icon.png",
+    "128": "assets/atlas-sentinel-icon.png"
   }
 }
