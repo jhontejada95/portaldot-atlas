@@ -80,6 +80,20 @@ async function initializeSchema(client) {
     );
     CREATE INDEX IF NOT EXISTS atlas_sentinel_links_expires_at_idx
       ON atlas_sentinel_links (expires_at);
+
+    CREATE TABLE IF NOT EXISTS atlas_agent_incidents (
+      incident_id TEXT PRIMARY KEY,
+      policy_hash TEXT NOT NULL,
+      action TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('reserved', 'verified', 'rejected', 'expired')),
+      decision JSONB NOT NULL,
+      outcome JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      resolved_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS atlas_agent_incidents_status_idx
+      ON atlas_agent_incidents (status, expires_at);
   `);
 }
 

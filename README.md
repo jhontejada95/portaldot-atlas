@@ -120,11 +120,22 @@ authorized x402 request and the resulting transaction is recorded publicly.
 
 ## Agent boundary
 
-Atlas needs a durable agent runtime for its incident loop. Eve is the chosen
-runtime, but Eve currently requires Node 24 while this workspace has Node 22.
-The protocol, live probe and paid resource remain usable without pretending a
-language model is making safety-critical decisions. The agent may only request
-an independent probe under the policy documented in `PROTOCOL_BRIEF.md`.
+`npm run agent:observe` performs one real read-only Portaldot observation and
+records an EIP-191 signature over the exact observation. It then evaluates the
+versioned, deterministic reliability policy; no language model, wallet choice,
+or private key is part of that decision.
+
+The policy hash, a five-minute expiry, Base Sepolia/exact-payment constraint,
+and an incident hash derived from the three signed failures are recorded with
+each decision. A paid corroboration must first reserve that incident in the
+durable database; the unique incident id makes a second reservation fail even
+after a process restart. The command never calls the paid endpoint and cannot
+move funds. A separately authorized worker would still have to validate every
+x402 requirement and record the actual payment outcome.
+
+The latest live run returned a `hold` decision because the public endpoint was
+healthy. Atlas does not manufacture failures to demonstrate the escalation
+path.
 
 ## On-chain contribution record
 

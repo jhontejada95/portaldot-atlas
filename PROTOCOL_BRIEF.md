@@ -106,6 +106,18 @@ diferencia de finalización. El presupuesto debe tener:
 - expiración corta;
 - idempotencia por `incident_id`.
 
+La implementación actual fija además una política serializada y hasheada
+(`atlas.reliability-policy.v1`): ventana de 15 minutos, tres fallas
+consecutivas, máximo de US$0.001, una sola corroboración por incidente,
+expiración de 5 minutos y únicamente x402 `exact` sobre Base Sepolia. Cada
+observación del agente se firma sobre su contenido exacto; la política ignora
+registros sin firma válida. Si se alcanza el umbral, Atlas primero reserva de
+forma atómica el `incident_id` en almacenamiento durable. Reservar no paga:
+un worker autorizado e independiente tendría que comprobar nuevamente la
+oferta x402 y registrar el resultado de una transacción real. Así, un LLM no
+puede alterar el resultado de la política, elegir una wallet ni duplicar un
+pago después de un reinicio.
+
 Para el MVP se usa x402 sobre Base Sepolia porque el flujo ya fue liquidado y
 verificado en Wayfare. MPP no se incorpora aún: es una alternativa de transporte
 de pagos, no un requisito para resolver la corroboración.
