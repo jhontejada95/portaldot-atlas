@@ -18,6 +18,10 @@ services:
         value: base-sepolia
       - key: ATLAS_PORTALDOT_ENDPOINT
         value: wss://mainnet.portaldot.io
+      # Fail closed if the configured WebSocket points at a different network.
+      # Recorded from a fresh official Portaldot Mainnet probe on 2026-10-12.
+      - key: ATLAS_EXPECTED_GENESIS
+        value: 0x83b5212c69f85f3996f8696bb35bf913af51b176a5f53d0a74fd3a83dc0b8a54
       # These remain deployment-only secrets. Render asks for them during
       # Blueprint creation and they are never stored in this repository.
       - key: ATLAS_PAY_TO
