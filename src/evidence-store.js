@@ -64,3 +64,53 @@ export async function recentLiveEvidence(limit = 25) {
     throw error;
   }
 }
+
+/**
+ * Returns the complete recorded set for a closed epoch window. This is used
+ * only to derive a deterministic Merkle commitment; it does not fabricate or
+ * refill missing observations.
+ */
+export async function evidenceRecordedBetween(startAt, endAt, limit = 50_000) {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start >= end) {
+    throw new Error("invalid_epoch_window");
+  }
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 50_000, 50_000));
+  const database = await getDatabase();
+  if (database) {
+    const result = await database.query(
+      `SELECT id, kind, recorded_at, payload
+       FROM atlas_evidence
+       WHERE recorded_at >= $1 AND recorded_at < $2
+       ORDER BY recorded_at ASC, id ASC
+       LIMIT $3`,
+      [start.toISOString(), end.toISOString(), safeLimit],
+    );
+    return result.rows.map((row) => ({
+      schema: "atlas.evidence-record.v1",
+      id: row.id,
+      kind: row.kind,
+      recordedAt: new Date(row.recorded_at).toISOString(),
+      payload: row.payload,
+    }));
+  }
+
+  try {
+    const raw = await readFile(journalPath, "utf8");
+    return raw
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+      .filter((record) => {
+        const recordedAt = Date.parse(record.recordedAt);
+        return Number.isFinite(recordedAt) && recordedAt >= start.getTime() && recordedAt < end.getTime();
+      })
+      .sort((left, right) => left.recordedAt.localeCompare(right.recordedAt) || left.id.localeCompare(right.id))
+      .slice(0, safeLimit);
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+}

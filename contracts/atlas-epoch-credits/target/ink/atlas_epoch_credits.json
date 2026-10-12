@@ -1,10 +1,10 @@
 {
   "source": {
-    "hash": "0xdb7eda55fcd4030e859705d1e4e1ca4e58fb4ee4ab7d1fd7dffac3959b5599ab",
+    "hash": "0x9bd8199fac68ed625a30602b5a5a29e3ab06ddfd968cf040339a10e1185f26c8",
     "language": "ink! 5.1.1",
     "compiler": "rustc 1.88.0",
     "build_info": {
-      "build_mode": "Release",
+      "build_mode": "Debug",
       "cargo_contract_version": "5.0.1",
       "rust_toolchain": "stable-x86_64-pc-windows-msvc",
       "wasm_opt_settings": {
@@ -44,7 +44,7 @@
             "ink_primitives",
             "ConstructorResult"
           ],
-          "type": 23
+          "type": 30
         },
         "selector": "0x9bae9d5e"
       }
@@ -65,19 +65,19 @@
         "displayName": [
           "Balance"
         ],
-        "type": 18
+        "type": 25
       },
       "blockNumber": {
         "displayName": [
           "BlockNumber"
         ],
-        "type": 34
+        "type": 13
       },
       "chainExtension": {
         "displayName": [
           "ChainExtension"
         ],
-        "type": 35
+        "type": 43
       },
       "hash": {
         "displayName": [
@@ -118,12 +118,34 @@
               ],
               "type": 3
             }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "policy_hash",
+            "type": {
+              "displayName": [
+                "Hash"
+              ],
+              "type": 3
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "evidence_count",
+            "type": {
+              "displayName": [
+                "u32"
+              ],
+              "type": 13
+            }
           }
         ],
         "docs": [],
         "label": "EpochPublished",
         "module_path": "atlas_epoch_credits::atlas_epoch_credits",
-        "signature_topic": "0x10d4b843be5f1127c280f85e73c90deecc4bdd0c806c2d8d3a57529eb3e0afd5"
+        "signature_topic": "0xb79d62e1e6bb76975e5fbdd65324835f2735c2a9f5652eae5d0ed344b5a0768f"
       },
       {
         "args": [
@@ -157,7 +179,18 @@
               "displayName": [
                 "u128"
               ],
-              "type": 18
+              "type": 25
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "contribution_commitment",
+            "type": {
+              "displayName": [
+                "Hash"
+              ],
+              "type": 3
             }
           },
           {
@@ -168,14 +201,14 @@
               "displayName": [
                 "u128"
               ],
-              "type": 18
+              "type": 25
             }
           }
         ],
         "docs": [],
         "label": "CreditsClaimed",
         "module_path": "atlas_epoch_credits::atlas_epoch_credits",
-        "signature_topic": "0xce436ef7ae169fd0d4f7de36bb10612bbcc3f943a378dd7f14373639f0874230"
+        "signature_topic": "0xf139022cacfe81f0f3280ff581323dae7b2e4de2f2cc5bfd2305467e323bb530"
       }
     ],
     "lang_error": {
@@ -183,7 +216,7 @@
         "ink",
         "LangError"
       ],
-      "type": 24
+      "type": 31
     },
     "messages": [
       {
@@ -205,6 +238,24 @@
               ],
               "type": 3
             }
+          },
+          {
+            "label": "policy_hash",
+            "type": {
+              "displayName": [
+                "Hash"
+              ],
+              "type": 3
+            }
+          },
+          {
+            "label": "evidence_count",
+            "type": {
+              "displayName": [
+                "u32"
+              ],
+              "type": 13
+            }
           }
         ],
         "default": false,
@@ -220,7 +271,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 25
+          "type": 32
         },
         "selector": "0x2c139004"
       },
@@ -241,7 +292,16 @@
               "displayName": [
                 "u128"
               ],
-              "type": 18
+              "type": 25
+            }
+          },
+          {
+            "label": "contribution_commitment",
+            "type": {
+              "displayName": [
+                "Hash"
+              ],
+              "type": 3
             }
           },
           {
@@ -250,13 +310,16 @@
               "displayName": [
                 "Vec"
               ],
-              "type": 28
+              "type": 35
             }
           }
         ],
         "default": false,
         "docs": [
-          " Claims credits once. A leaf is Blake2x256(SCALE(account, amount)).",
+          " Claims credits once. A leaf is",
+          " Blake2x256(SCALE(account, amount, contribution_commitment)).",
+          " The commitment binds the exact accepted receipt set used to calculate",
+          " the claim, rather than committing only to a balance chosen off-chain.",
           " Proof nodes are ordered lexicographically before each pair hash."
         ],
         "label": "claim",
@@ -267,7 +330,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 25
+          "type": 32
         },
         "selector": "0xb388803f"
       },
@@ -293,9 +356,61 @@
             "ink",
             "MessageResult"
           ],
-          "type": 29
+          "type": 36
         },
         "selector": "0xb28990c6"
+      },
+      {
+        "args": [
+          {
+            "label": "epoch",
+            "type": {
+              "displayName": [
+                "Epoch"
+              ],
+              "type": 5
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "epoch_policy_hash",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 36
+        },
+        "selector": "0xc2904b7e"
+      },
+      {
+        "args": [
+          {
+            "label": "epoch",
+            "type": {
+              "displayName": [
+                "Epoch"
+              ],
+              "type": 5
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "epoch_evidence_count",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 38
+        },
+        "selector": "0x71809159"
       },
       {
         "args": [
@@ -319,7 +434,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 31
+          "type": 40
         },
         "selector": "0x20491483"
       },
@@ -354,7 +469,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 32
+          "type": 41
         },
         "selector": "0x55ea6aa3"
       },
@@ -370,7 +485,7 @@
             "ink",
             "MessageResult"
           ],
-          "type": 33
+          "type": 42
         },
         "selector": "0xcc9e562e"
       }
@@ -410,12 +525,42 @@
                 "root": {
                   "layout": {
                     "leaf": {
+                      "key": "0x5f02473c",
+                      "ty": 3
+                    }
+                  },
+                  "root_key": "0x5f02473c",
+                  "ty": 10
+                }
+              },
+              "name": "epoch_policy_hashes"
+            },
+            {
+              "layout": {
+                "root": {
+                  "layout": {
+                    "leaf": {
+                      "key": "0x0d629a71",
+                      "ty": 13
+                    }
+                  },
+                  "root_key": "0x0d629a71",
+                  "ty": 14
+                }
+              },
+              "name": "epoch_evidence_counts"
+            },
+            {
+              "layout": {
+                "root": {
+                  "layout": {
+                    "leaf": {
                       "key": "0xe5694963",
-                      "ty": 10
+                      "ty": 17
                     }
                   },
                   "root_key": "0xe5694963",
-                  "ty": 11
+                  "ty": 18
                 }
               },
               "name": "published"
@@ -426,11 +571,11 @@
                   "layout": {
                     "leaf": {
                       "key": "0xf39647d5",
-                      "ty": 10
+                      "ty": 17
                     }
                   },
                   "root_key": "0xf39647d5",
-                  "ty": 14
+                  "ty": 21
                 }
               },
               "name": "claimed"
@@ -441,11 +586,11 @@
                   "layout": {
                     "leaf": {
                       "key": "0xd395b0e3",
-                      "ty": 18
+                      "ty": 25
                     }
                   },
                   "root_key": "0xd395b0e3",
-                  "ty": 19
+                  "ty": 26
                 }
               },
               "name": "credits"
@@ -455,7 +600,7 @@
         }
       },
       "root_key": "0x00000000",
-      "ty": 22
+      "ty": 29
     }
   },
   "types": [
@@ -621,14 +766,6 @@
       "id": 10,
       "type": {
         "def": {
-          "primitive": "bool"
-        }
-      }
-    },
-    {
-      "id": 11,
-      "type": {
-        "def": {
           "composite": {}
         },
         "params": [
@@ -638,11 +775,11 @@
           },
           {
             "name": "V",
-            "type": 10
+            "type": 3
           },
           {
             "name": "KeyType",
-            "type": 12
+            "type": 11
           }
         ],
         "path": [
@@ -654,7 +791,7 @@
       }
     },
     {
-      "id": 12,
+      "id": 11,
       "type": {
         "def": {
           "composite": {}
@@ -666,7 +803,7 @@
           },
           {
             "name": "R",
-            "type": 13
+            "type": 12
           }
         ],
         "path": [
@@ -677,7 +814,7 @@
       }
     },
     {
-      "id": 13,
+      "id": 12,
       "type": {
         "def": {
           "composite": {}
@@ -696,6 +833,14 @@
       }
     },
     {
+      "id": 13,
+      "type": {
+        "def": {
+          "primitive": "u32"
+        }
+      }
+    },
+    {
       "id": 14,
       "type": {
         "def": {
@@ -704,15 +849,15 @@
         "params": [
           {
             "name": "K",
-            "type": 15
+            "type": 5
           },
           {
             "name": "V",
-            "type": 10
+            "type": 13
           },
           {
             "name": "KeyType",
-            "type": 16
+            "type": 15
           }
         ],
         "path": [
@@ -727,17 +872,6 @@
       "id": 15,
       "type": {
         "def": {
-          "tuple": [
-            5,
-            0
-          ]
-        }
-      }
-    },
-    {
-      "id": 16,
-      "type": {
-        "def": {
           "composite": {}
         },
         "params": [
@@ -747,7 +881,7 @@
           },
           {
             "name": "R",
-            "type": 17
+            "type": 16
           }
         ],
         "path": [
@@ -758,7 +892,7 @@
       }
     },
     {
-      "id": 17,
+      "id": 16,
       "type": {
         "def": {
           "composite": {}
@@ -777,15 +911,15 @@
       }
     },
     {
-      "id": 18,
+      "id": 17,
       "type": {
         "def": {
-          "primitive": "u128"
+          "primitive": "bool"
         }
       }
     },
     {
-      "id": 19,
+      "id": 18,
       "type": {
         "def": {
           "composite": {}
@@ -793,15 +927,15 @@
         "params": [
           {
             "name": "K",
-            "type": 0
+            "type": 5
           },
           {
             "name": "V",
-            "type": 18
+            "type": 17
           },
           {
             "name": "KeyType",
-            "type": 20
+            "type": 19
           }
         ],
         "path": [
@@ -813,7 +947,7 @@
       }
     },
     {
-      "id": 20,
+      "id": 19,
       "type": {
         "def": {
           "composite": {}
@@ -825,7 +959,7 @@
           },
           {
             "name": "R",
-            "type": 21
+            "type": 20
           }
         ],
         "path": [
@@ -836,7 +970,7 @@
       }
     },
     {
-      "id": 21,
+      "id": 20,
       "type": {
         "def": {
           "composite": {}
@@ -855,7 +989,166 @@
       }
     },
     {
+      "id": 21,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "K",
+            "type": 22
+          },
+          {
+            "name": "V",
+            "type": 17
+          },
+          {
+            "name": "KeyType",
+            "type": 23
+          }
+        ],
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
+      }
+    },
+    {
       "id": 22,
+      "type": {
+        "def": {
+          "tuple": [
+            5,
+            0
+          ]
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "L",
+            "type": 7
+          },
+          {
+            "name": "R",
+            "type": 24
+          }
+        ],
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
+      }
+    },
+    {
+      "id": 24,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "ParentKey",
+            "type": 9
+          }
+        ],
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
+      }
+    },
+    {
+      "id": 25,
+      "type": {
+        "def": {
+          "primitive": "u128"
+        }
+      }
+    },
+    {
+      "id": 26,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "K",
+            "type": 0
+          },
+          {
+            "name": "V",
+            "type": 25
+          },
+          {
+            "name": "KeyType",
+            "type": 27
+          }
+        ],
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
+      }
+    },
+    {
+      "id": 27,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "L",
+            "type": 7
+          },
+          {
+            "name": "R",
+            "type": 28
+          }
+        ],
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
+      }
+    },
+    {
+      "id": 28,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "ParentKey",
+            "type": 9
+          }
+        ],
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
+      }
+    },
+    {
+      "id": 29,
       "type": {
         "def": {
           "composite": {
@@ -871,18 +1164,28 @@
                 "typeName": "<Mapping<Epoch, Hash> as::ink::storage::traits::AutoStorableHint<\n::ink::storage::traits::ManualKey<1568692741u32, ()>,>>::Type"
               },
               {
+                "name": "epoch_policy_hashes",
+                "type": 10,
+                "typeName": "<Mapping<Epoch, Hash> as::ink::storage::traits::AutoStorableHint<\n::ink::storage::traits::ManualKey<1011286623u32, ()>,>>::Type"
+              },
+              {
+                "name": "epoch_evidence_counts",
+                "type": 14,
+                "typeName": "<Mapping<Epoch, u32> as::ink::storage::traits::AutoStorableHint<\n::ink::storage::traits::ManualKey<1905943053u32, ()>,>>::Type"
+              },
+              {
                 "name": "published",
-                "type": 11,
+                "type": 18,
                 "typeName": "<Mapping<Epoch, bool> as::ink::storage::traits::AutoStorableHint<\n::ink::storage::traits::ManualKey<1665755621u32, ()>,>>::Type"
               },
               {
                 "name": "claimed",
-                "type": 14,
+                "type": 21,
                 "typeName": "<Mapping<(Epoch, AccountId), bool> as::ink::storage::traits::\nAutoStorableHint<::ink::storage::traits::ManualKey<3578238707u32,\n()>,>>::Type"
               },
               {
                 "name": "credits",
-                "type": 19,
+                "type": 26,
                 "typeName": "<Mapping<AccountId, u128> as::ink::storage::traits::\nAutoStorableHint<::ink::storage::traits::ManualKey<3820000723u32,\n()>,>>::Type"
               }
             ]
@@ -896,7 +1199,7 @@
       }
     },
     {
-      "id": 23,
+      "id": 30,
       "type": {
         "def": {
           "variant": {
@@ -913,7 +1216,7 @@
               {
                 "fields": [
                   {
-                    "type": 24
+                    "type": 31
                   }
                 ],
                 "index": 1,
@@ -929,7 +1232,7 @@
           },
           {
             "name": "E",
-            "type": 24
+            "type": 31
           }
         ],
         "path": [
@@ -938,7 +1241,7 @@
       }
     },
     {
-      "id": 24,
+      "id": 31,
       "type": {
         "def": {
           "variant": {
@@ -957,7 +1260,7 @@
       }
     },
     {
-      "id": 25,
+      "id": 32,
       "type": {
         "def": {
           "variant": {
@@ -965,7 +1268,7 @@
               {
                 "fields": [
                   {
-                    "type": 26
+                    "type": 33
                   }
                 ],
                 "index": 0,
@@ -974,7 +1277,7 @@
               {
                 "fields": [
                   {
-                    "type": 24
+                    "type": 31
                   }
                 ],
                 "index": 1,
@@ -986,11 +1289,11 @@
         "params": [
           {
             "name": "T",
-            "type": 26
+            "type": 33
           },
           {
             "name": "E",
-            "type": 24
+            "type": 31
           }
         ],
         "path": [
@@ -999,7 +1302,7 @@
       }
     },
     {
-      "id": 26,
+      "id": 33,
       "type": {
         "def": {
           "variant": {
@@ -1016,7 +1319,7 @@
               {
                 "fields": [
                   {
-                    "type": 27
+                    "type": 34
                   }
                 ],
                 "index": 1,
@@ -1032,7 +1335,7 @@
           },
           {
             "name": "E",
-            "type": 27
+            "type": 34
           }
         ],
         "path": [
@@ -1041,7 +1344,7 @@
       }
     },
     {
-      "id": 27,
+      "id": 34,
       "type": {
         "def": {
           "variant": {
@@ -1064,14 +1367,22 @@
               },
               {
                 "index": 4,
-                "name": "AlreadyClaimed"
+                "name": "EmptyPolicyHash"
               },
               {
                 "index": 5,
-                "name": "InvalidProof"
+                "name": "EmptyEpoch"
               },
               {
                 "index": 6,
+                "name": "AlreadyClaimed"
+              },
+              {
+                "index": 7,
+                "name": "InvalidProof"
+              },
+              {
+                "index": 8,
                 "name": "CreditOverflow"
               }
             ]
@@ -1085,7 +1396,7 @@
       }
     },
     {
-      "id": 28,
+      "id": 35,
       "type": {
         "def": {
           "sequence": {
@@ -1095,7 +1406,7 @@
       }
     },
     {
-      "id": 29,
+      "id": 36,
       "type": {
         "def": {
           "variant": {
@@ -1103,7 +1414,7 @@
               {
                 "fields": [
                   {
-                    "type": 30
+                    "type": 37
                   }
                 ],
                 "index": 0,
@@ -1112,7 +1423,7 @@
               {
                 "fields": [
                   {
-                    "type": 24
+                    "type": 31
                   }
                 ],
                 "index": 1,
@@ -1124,11 +1435,11 @@
         "params": [
           {
             "name": "T",
-            "type": 30
+            "type": 37
           },
           {
             "name": "E",
-            "type": 24
+            "type": 31
           }
         ],
         "path": [
@@ -1137,7 +1448,7 @@
       }
     },
     {
-      "id": 30,
+      "id": 37,
       "type": {
         "def": {
           "variant": {
@@ -1170,7 +1481,7 @@
       }
     },
     {
-      "id": 31,
+      "id": 38,
       "type": {
         "def": {
           "variant": {
@@ -1178,7 +1489,7 @@
               {
                 "fields": [
                   {
-                    "type": 18
+                    "type": 39
                   }
                 ],
                 "index": 0,
@@ -1187,7 +1498,7 @@
               {
                 "fields": [
                   {
-                    "type": 24
+                    "type": 31
                   }
                 ],
                 "index": 1,
@@ -1199,11 +1510,11 @@
         "params": [
           {
             "name": "T",
-            "type": 18
+            "type": 39
           },
           {
             "name": "E",
-            "type": 24
+            "type": 31
           }
         ],
         "path": [
@@ -1212,7 +1523,40 @@
       }
     },
     {
-      "id": 32,
+      "id": 39,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "index": 0,
+                "name": "None"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 13
+                  }
+                ],
+                "index": 1,
+                "name": "Some"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 13
+          }
+        ],
+        "path": [
+          "Option"
+        ]
+      }
+    },
+    {
+      "id": 40,
       "type": {
         "def": {
           "variant": {
@@ -1220,7 +1564,7 @@
               {
                 "fields": [
                   {
-                    "type": 10
+                    "type": 25
                   }
                 ],
                 "index": 0,
@@ -1229,7 +1573,7 @@
               {
                 "fields": [
                   {
-                    "type": 24
+                    "type": 31
                   }
                 ],
                 "index": 1,
@@ -1241,11 +1585,11 @@
         "params": [
           {
             "name": "T",
-            "type": 10
+            "type": 25
           },
           {
             "name": "E",
-            "type": 24
+            "type": 31
           }
         ],
         "path": [
@@ -1254,7 +1598,49 @@
       }
     },
     {
-      "id": 33,
+      "id": 41,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 17
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 31
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 17
+          },
+          {
+            "name": "E",
+            "type": 31
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 42,
       "type": {
         "def": {
           "variant": {
@@ -1271,7 +1657,7 @@
               {
                 "fields": [
                   {
-                    "type": 24
+                    "type": 31
                   }
                 ],
                 "index": 1,
@@ -1287,7 +1673,7 @@
           },
           {
             "name": "E",
-            "type": 24
+            "type": 31
           }
         ],
         "path": [
@@ -1296,15 +1682,7 @@
       }
     },
     {
-      "id": 34,
-      "type": {
-        "def": {
-          "primitive": "u32"
-        }
-      }
-    },
-    {
-      "id": 35,
+      "id": 43,
       "type": {
         "def": {
           "variant": {}

@@ -12,11 +12,13 @@
     "init:receiver": "node scripts/init-receiver.mjs",
     "init:signer": "node scripts/init-signer.mjs",
     "probe:paid": "node scripts/paid-independent-probe.mjs",
+    "epoch:build": "node scripts/build-epoch-plan.mjs",
     "package:sentinel": "powershell -ExecutionPolicy Bypass -File scripts/package-sentinel.ps1",
     "start": "node src/server.js",
     "probe": "node src/cli-probe.js",
     "verify:monitor": "node scripts/verify-live-monitor.mjs",
     "verify:sentinel": "node scripts/verify-sentinel-ingestion.mjs",
+    "verify:epoch-plan": "node scripts/verify-epoch-plan.mjs",
     "verify:x402-challenge": "node scripts/verify-x402-challenge.mjs",
     "verify:live": "node scripts/verify-live-probe.mjs"
   },

@@ -129,14 +129,37 @@ an independent probe under the policy documented in `PROTOCOL_BRIEF.md`.
 ## On-chain contribution record
 
 `contracts/atlas-epoch-credits` is an executable ink! contract for immutable
-epoch roots and one-time, non-transferable Atlas Credit claims. Its two
-invariant tests passed, and its release bundle was built locally with
-`cargo-contract 5.0.1`. The resulting Wasm is 9,420 bytes with SHA-256:
+epoch roots and one-time, non-transferable Atlas Credit claims. Each epoch
+also commits its public policy hash and accepted-record count; each claim
+binds the wallet, amount and a hash of the exact accepted receipt set. This
+prevents a later change to the off-chain receipt set from silently preserving
+the same on-chain balance. Its five invariant tests passed, and its release bundle was built locally with
+`cargo-contract 5.0.1`. The resulting Wasm is 23,124 bytes with SHA-256:
 
 ```text
-c278778937ce5521bf5e95afddfc15aaa7c1deddec6be2aca7c0cdc6753e5641
+81ee8f6c55965b44fff7f294cbddcc31037fba9cf34eadfbd6c318722a9abe47
 ```
 
 This proves a real compile/package only. The current public Portaldot endpoint
 does not expose a V3 testnet deployment path, so this artifact is not claimed
 as deployed until that path is available and exercised.
+
+## Deterministic epoch plans
+
+`src/epoch-builder.js` produces an epoch plan only from accepted Sentinel
+receipts already present in Atlas storage. It re-verifies every P-256 client
+signature, checks the expected Portaldot genesis, applies the public 15-minute
+per-Sentinel interval and wallet cap, then creates a Merkle root and each
+claim proof. It does not publish a root, mint a credit, or create evidence.
+
+Run the live-data verifier with:
+
+```powershell
+npm run verify:epoch-plan
+```
+
+To inspect a closed window without publishing it, call the script directly:
+
+```powershell
+node scripts/build-epoch-plan.mjs --epoch 1 --from 2026-10-11T00:00:00.000Z --to 2026-10-12T00:00:00.000Z
+```
