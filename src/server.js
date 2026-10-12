@@ -6,6 +6,7 @@ import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { assertUsableProbe, samplePortaldot } from "./portaldot-probe.js";
 import { signProbeEvidence, verifyProbeEvidence } from "./signed-evidence.js";
 import { appendLiveEvidence, recentLiveEvidence } from "./evidence-store.js";
+import { assessIncident, reliabilityPolicyHash } from "./reliability-policy.js";
 import { publicKeyForSentinel, registerSentinel } from "./sentinel-registry.js";
 import { verifySentinelAttestation } from "./sentinel-attestation.js";
 import { claimSentinelLink, createSentinelLink, createWalletChallenge, initializeWalletAuth, sentinelsForWallet, verifyWalletChallenge, walletForRequest, walletForSentinel } from "./wallet-auth.js";
@@ -88,6 +89,38 @@ app.get("/v1/evidence/recent", async (request, response, next) => {
       .filter((record) => record.payload?.probe && record.payload?.attestation)
       .slice(0, Number.isFinite(requested) ? Math.max(1, Math.min(requested, 100)) : 25);
     response.status(200).json({ schema: "atlas.evidence-feed.v1", records });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Exposes the current deterministic gate, not a claimed incident or a payment.
+// Agent observations must re-verify before they can influence this response.
+app.get("/v1/agent/status", async (_request, response, next) => {
+  try {
+    const records = await recentLiveEvidence(100);
+    const verified = [];
+    for (const record of records) {
+      if (record.kind !== "agent_observation") continue;
+      const observation = record.payload?.observation;
+      const attestation = record.payload?.attestation;
+      if (!observation || !attestation || !await verifyProbeEvidence(observation, attestation)) continue;
+      verified.push({ ...observation, evidenceId: record.id, recordedAt: record.recordedAt });
+    }
+    const latest = verified.sort((left, right) => Date.parse(right.observedAt) - Date.parse(left.observedAt))[0] ?? null;
+    response.status(200).json({
+      schema: "atlas.agent-status.v1",
+      policyHash: reliabilityPolicyHash(),
+      verifiedObservationCount: verified.length,
+      latestObservation: latest ? {
+        evidenceId: latest.evidenceId,
+        observedAt: latest.observedAt,
+        usable: latest.usable,
+        signatureVerified: true,
+      } : null,
+      decision: assessIncident(verified),
+      note: "This endpoint reports a deterministic gate. It does not initiate or settle an x402 payment.",
+    });
   } catch (error) {
     next(error);
   }

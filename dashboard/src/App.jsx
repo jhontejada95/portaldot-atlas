@@ -52,6 +52,7 @@ export function App() {
   });
   const [network, setNetwork] = useState(null);
   const [records, setRecords] = useState([]);
+  const [agentStatus, setAgentStatus] = useState(null);
   const [state, setState] = useState("loading");
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
@@ -77,8 +78,10 @@ export function App() {
       const evidenceResponse = await fetch("/v1/evidence/recent?limit=25", { headers: { accept: "application/json" } });
       if (!evidenceResponse.ok) throw new Error(`Evidence journal was unavailable (${evidenceResponse.status}).`);
       const evidence = await evidenceResponse.json();
+      const agentResponse = await fetch("/v1/agent/status", { headers: { accept: "application/json" } });
       setNetwork(observation);
       setRecords(Array.isArray(evidence.records) ? evidence.records : []);
+      setAgentStatus(agentResponse.ok ? await agentResponse.json() : null);
       setUpdatedAt(new Date().toISOString());
       setState("live");
     } catch (requestError) {
@@ -142,6 +145,7 @@ export function App() {
 
   const probe = network?.payload?.probe;
   const attestation = network?.payload?.attestation;
+  const agentHolding = agentStatus?.decision?.action === "hold";
   const clientEvidence = personalEvidence;
   const contributionDays = useMemo(() => new Set(clientEvidence.map((record) => (record.payload?.observedAt ?? record.recordedAt ?? "").slice(0, 10)).filter(Boolean)).size, [clientEvidence]);
   const alerts = useMemo(() => {
@@ -191,6 +195,8 @@ export function App() {
       <article className="panel network-panel"><div className="panel-heading"><div><p className="eyebrow">NOW OBSERVING</p><h2>Portaldot endpoint evidence</h2></div><button className="icon-button" onClick={refresh} aria-label="Refresh network evidence"><i className="fa-solid fa-rotate" aria-hidden="true" /></button></div><div className="field-grid"><Field label="Endpoint" value={probe?.endpoint ? new URL(probe.endpoint).host : "—"} /><Field label="Runtime" value={probe?.runtime?.specName ? `${probe.runtime.specName} v${probe.runtime.specVersion}` : "—"} /><Field label="Genesis" value={shortHash(probe?.genesisHash)} mono /><Field label="Signature scheme" value={attestation?.scheme ?? "—"} /></div><div className="evidence-footer"><span><i className="fa-solid fa-shield-halved" aria-hidden="true" /> {attestation ? "Signed server attestation recorded" : "No signed attestation yet"}</span><button className="text-button" onClick={() => setActive("evidence")}>Inspect evidence <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button></div></article>
       <article className="panel sentinel-panel"><div className="panel-heading"><div><p className="eyebrow">YOUR DEVICE</p><h2>My Sentinel</h2></div><i className="fa-solid fa-satellite-dish large-icon" aria-hidden="true" /></div>{clientEvidence.length ? <><strong className="sentinel-number">{clientEvidence.length}</strong><p>signed Sentinel observations are in this local Atlas evidence journal.</p><button className="secondary-button" onClick={() => setActive("evidence")}>View contributions</button></> : <EmptyState icon="fa-plug-circle-xmark" title="No Sentinel connected">Install and enable the Atlas Sentinel extension to create your first signed observation. Atlas never reports browsing activity or shares bandwidth.</EmptyState>}</article>
     </section>
+
+    {agentStatus ? <section className="panel agent-panel"><div className="panel-heading"><div><p className="eyebrow">RELIABILITY AGENT</p><h2>{agentHolding ? "Monitoring within policy" : "Independent corroboration requires review"}</h2></div><span className={`status-pill ${agentHolding ? "is-live" : "is-pending"}`}><i className="fa-solid fa-shield-halved" aria-hidden="true" /> {agentHolding ? "Hold" : "Policy gate"}</span></div><p className="panel-lede">The agent evaluates signed observations against a public policy. It cannot choose a wallet or settle a payment from this dashboard.</p><div className="field-grid"><Field label="Latest signed check" value={agentStatus.latestObservation ? formatTime(agentStatus.latestObservation.observedAt) : "No agent check recorded"} /><Field label="Verified observations" value={String(agentStatus.verifiedObservationCount ?? 0)} /><Field label="Policy commitment" value={shortHash(agentStatus.policyHash)} mono /><Field label="Decision" value={agentStatus.decision?.reason?.replaceAll("_", " ") ?? "—"} /></div><div className="evidence-footer"><span><i className="fa-solid fa-lock" aria-hidden="true" /> {agentStatus.note}</span></div></section> : null}
 
     <section className="panel evidence-strip"><div className="panel-heading"><div><p className="eyebrow">RECENTLY RECORDED</p><h2>Evidence activity</h2></div><button className="text-button" onClick={() => setActive("evidence")}>View all <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button></div>{records.length ? <div className="activity-list">{records.slice(0, 4).map((record) => <div className="activity-item" key={record.id}><span className="activity-icon"><i className="fa-solid fa-file-shield" aria-hidden="true" /></span><div><strong>{evidenceKinds[record.kind] ?? record.kind}</strong><p>{formatTime(record.recordedAt)} · {record.payload?.probe?.finalizedHeader?.number ? `block ${record.payload.probe.finalizedHeader.number}` : "recorded live"}</p></div><code>{shortHash(record.id, 8)}</code></div>)}</div> : <EmptyState icon="fa-folder-open" title="No retained evidence yet">Run a live check to create a signed evidence record.</EmptyState>}</section>
   </>;
