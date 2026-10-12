@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: portaldot-atlas-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # Persistent storage is Neon Postgres, not a short-lived Render database.
+      - key: DATABASE_URL
+        sync: false
+      - key: ATLAS_DATABASE_SSL
+        value: "true"
+      - key: ATLAS_NETWORK
+        value: base-sepolia
+      - key: ATLAS_PORTALDOT_ENDPOINT
+        value: wss://mainnet.portaldot.io
+      # These remain deployment-only secrets. Render asks for them during
+      # Blueprint creation and they are never stored in this repository.
+      - key: ATLAS_PAY_TO
+        sync: false
+      - key: ATLAS_SENTINEL_PRIVATE_KEY
+        sync: false

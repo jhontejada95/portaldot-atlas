@@ -37,12 +37,17 @@ Atlas supports two explicitly different modes:
   `/health` reports `storage: "postgres"`; do not treat a deployed API that
   reports `local-runtime` as durable.
 
-For the Render MVP, create a Postgres database and a Web Service in the same
-region, set Render's internal Postgres URL as the Web Service `DATABASE_URL`,
-and let Render provide `PORT` automatically. Do not set `ATLAS_PORT` in that
-service. The server already prefers platform `PORT` when present. Keep
-`ATLAS_SENTINEL_PRIVATE_KEY` and `ATLAS_PAY_TO` only in Render's encrypted
-environment variables.
+For the hosted MVP, Render runs the API and Neon runs the durable Postgres
+database. Set Neon's pooled `DATABASE_URL` in Render, set
+`ATLAS_DATABASE_SSL=true`, and let Render provide `PORT` automatically. Do
+not set `ATLAS_PORT` in that service. The server already prefers platform
+`PORT` when present. Keep `ATLAS_SENTINEL_PRIVATE_KEY` and `ATLAS_PAY_TO` only
+in Render's encrypted environment variables.
+
+`render.yaml` declares the free Render Web Service without committing any
+secret. Creating the Blueprint prompts for the Neon connection string, the
+Base Sepolia receiver address, and the server signing key. This is deliberate:
+do not put those values in Git, a dashboard build, or the Sentinel package.
 
 ## Verified x402 evidence
 
