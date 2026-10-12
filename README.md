@@ -24,6 +24,26 @@ blocks, locations, rewards, or network measurements.
   states where an on-chain epoch or personal device relationship does not yet
   exist.
 
+## Durable deployment storage
+
+Atlas supports two explicitly different modes:
+
+- **Local proof mode:** with no `DATABASE_URL`, it writes live evidence and a
+  linked-Sentinel registry under `.runtime/`. This is useful only for a local
+  developer session and remains excluded from Git.
+- **Hosted MVP mode:** when `DATABASE_URL` is present, the API initializes its
+  Postgres schema on startup and stores evidence, Sentinel public keys,
+  wallet–Sentinel links, short-lived wallet challenges and sessions there.
+  `/health` reports `storage: "postgres"`; do not treat a deployed API that
+  reports `local-runtime` as durable.
+
+For the Render MVP, create a Postgres database and a Web Service in the same
+region, set Render's internal Postgres URL as the Web Service `DATABASE_URL`,
+and let Render provide `PORT` automatically. Do not set `ATLAS_PORT` in that
+service. The server already prefers platform `PORT` when present. Keep
+`ATLAS_SENTINEL_PRIVATE_KEY` and `ATLAS_PAY_TO` only in Render's encrypted
+environment variables.
+
 ## Verified x402 evidence
 
 On 2026-10-10, a Base Sepolia test payer bought a live Portaldot probe for

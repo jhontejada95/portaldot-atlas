@@ -9,11 +9,12 @@ import { appendLiveEvidence, recentLiveEvidence } from "./evidence-store.js";
 import { publicKeyForSentinel, registerSentinel } from "./sentinel-registry.js";
 import { verifySentinelAttestation } from "./sentinel-attestation.js";
 import { claimSentinelLink, createSentinelLink, createWalletChallenge, initializeWalletAuth, sentinelsForWallet, verifyWalletChallenge, walletForRequest, walletForSentinel } from "./wallet-auth.js";
+import { databaseEnabled } from "./database.js";
 
 dotenv.config({ path: process.env.ATLAS_ENV_FILE ?? ".env.local" });
 dotenv.config();
 
-const port = Number(process.env.ATLAS_PORT ?? 4030);
+const port = Number(process.env.PORT ?? process.env.ATLAS_PORT ?? 4030);
 const payTo = process.env.ATLAS_PAY_TO;
 const endpoint = process.env.ATLAS_PORTALDOT_ENDPOINT ?? "wss://mainnet.portaldot.io";
 const expectedGenesis = process.env.ATLAS_EXPECTED_GENESIS;
@@ -49,6 +50,7 @@ app.get("/health", (_request, response) => {
   response.status(200).json({
     service: "portaldot-atlas",
     status: "ok",
+    storage: databaseEnabled() ? "postgres" : "local-runtime",
     paidResource: "atlas.independent-probe.v1",
     endpoint,
     paymentNetwork: networkId,
@@ -91,10 +93,10 @@ app.get("/v1/evidence/recent", async (request, response, next) => {
   }
 });
 
-app.post("/v1/auth/challenge", (request, response) => {
+app.post("/v1/auth/challenge", async (request, response) => {
   try {
     const origin = request.get("origin") ?? "atlas-local";
-    response.status(201).json(createWalletChallenge(request.body?.address, origin));
+    response.status(201).json(await createWalletChallenge(request.body?.address, origin));
   } catch (error) {
     response.status(400).json({ error: error.message });
   }
@@ -110,10 +112,10 @@ app.post("/v1/auth/verify", async (request, response, next) => {
   }
 });
 
-app.post("/v1/sentinel-links", (request, response) => {
-  const wallet = walletForRequest(request);
+app.post("/v1/sentinel-links", async (request, response) => {
+  const wallet = await walletForRequest(request);
   if (!wallet) return response.status(401).json({ error: "wallet_session_required" });
-  response.status(201).json(createSentinelLink(wallet));
+  response.status(201).json(await createSentinelLink(wallet));
 });
 
 app.post("/v1/sentinels/link", async (request, response) => {
@@ -126,15 +128,15 @@ app.post("/v1/sentinels/link", async (request, response) => {
   response.status(201).json({ sentinelId, wallet });
 });
 
-app.get("/v1/me/sentinels", (request, response) => {
-  const wallet = walletForRequest(request);
+app.get("/v1/me/sentinels", async (request, response) => {
+  const wallet = await walletForRequest(request);
   if (!wallet) return response.status(401).json({ error: "wallet_session_required" });
-  response.status(200).json({ wallet, sentinelIds: sentinelsForWallet(wallet) });
+  response.status(200).json({ wallet, sentinelIds: await sentinelsForWallet(wallet) });
 });
 
 app.get("/v1/me/evidence", async (request, response, next) => {
   try {
-    const wallet = walletForRequest(request);
+    const wallet = await walletForRequest(request);
     if (!wallet) return response.status(401).json({ error: "wallet_session_required" });
     const records = (await recentLiveEvidence(100)).filter((record) => record.payload?.wallet === wallet);
     response.status(200).json({ wallet, records });
@@ -174,7 +176,7 @@ app.post("/v1/sentinel-observations", async (request, response, next) => {
     }
     const record = await appendLiveEvidence("client_sentinel_observation", {
       sentinelId: envelope.sentinelId,
-      wallet: walletForSentinel(envelope.sentinelId),
+      wallet: await walletForSentinel(envelope.sentinelId),
       observedAt: envelope.observedAt,
       probe,
       attestation: {
