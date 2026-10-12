@@ -2,7 +2,7 @@ const DEFAULTS = {
   enabled: false,
   intervalMinutes: 15,
   endpoint: "wss://mainnet.portaldot.io",
-  backendUrl: "http://127.0.0.1:4030",
+  backendUrl: "https://portaldot-atlas-api.onrender.com",
   linkCode: "",
   expectedGenesis: "0x83b5212c69f85f3996f8696bb35bf913af51b176a5f53d0a74fd3a83dc0b8a54",
 };

@@ -1,5 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
-const defaults = { backendUrl: "http://127.0.0.1:4030", intervalMinutes: 15, enabled: false };
+const defaults = { backendUrl: "https://portaldot-atlas-api.onrender.com", intervalMinutes: 15, enabled: false };
 
 function send(message) {
   return new Promise((resolve) => chrome.runtime.sendMessage(message, resolve));

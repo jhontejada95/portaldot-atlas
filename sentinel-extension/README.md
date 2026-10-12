@@ -14,9 +14,9 @@ When a user explicitly enables it, the extension:
 It uses Chrome alarms rather than pretending to run permanently in the
 background. The popup lets the participant configure the backend and interval,
 enable scheduled checks, trigger a real check now, and inspect the most recent
-local acceptance receipt. For local development, load this folder as an
-unpacked Manifest V3 extension. The local Atlas server is the default backend
-for verification, never production infrastructure.
+local acceptance receipt. The packaged default is the public Atlas API; a
+participant can still choose a local backend for development. Load this folder
+as an unpacked Manifest V3 extension when running a manual test.
 
 The live backend rejects unknown sentinel identities, stale observations,
 wrong-network data, and invalid device signatures before it adds anything to

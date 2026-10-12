@@ -7,6 +7,7 @@
   "permissions": ["alarms", "storage"],
   "host_permissions": [
     "wss://mainnet.portaldot.io/*",
+    "https://portaldot-atlas-api.onrender.com/*",
     "http://127.0.0.1:4030/*",
     "http://localhost:4030/*"
   ],
