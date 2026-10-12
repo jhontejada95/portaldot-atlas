@@ -24,7 +24,7 @@ async function verifiedAgentObservations() {
     const observation = record.payload?.observation;
     const attestation = record.payload?.attestation;
     if (!observation || !attestation || !await verifyProbeEvidence(observation, attestation)) continue;
-    verified.push({ ...observation, evidenceId: record.id });
+    verified.push({ ...observation, evidenceId: record.id, attestationDigest: attestation.digest });
   }
   return verified;
 }

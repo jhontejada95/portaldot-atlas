@@ -33,10 +33,14 @@ function samplePayload(sample) {
  * recommendation, never a wallet, and never payment credentials.
  */
 export function assessIncident(samples, now = Date.now()) {
-  const recent = samples
-    .map(samplePayload)
-    .filter((sample) => Number.isFinite(Date.parse(sample?.observedAt)))
-    .filter((sample) => now - Date.parse(sample.observedAt) <= RELIABILITY_POLICY_V1.windowMs)
+  const deduplicated = new Map();
+  for (const rawSample of samples.map(samplePayload)) {
+    const timestamp = Date.parse(rawSample?.observedAt);
+    const receiptKey = rawSample?.attestationDigest ?? rawSample?.evidenceId;
+    if (!Number.isFinite(timestamp) || timestamp > now || now - timestamp > RELIABILITY_POLICY_V1.windowMs || !receiptKey) continue;
+    if (!deduplicated.has(receiptKey)) deduplicated.set(receiptKey, rawSample);
+  }
+  const recent = [...deduplicated.values()]
     .sort((a, b) => Date.parse(a.observedAt) - Date.parse(b.observedAt));
   const failures = recent.filter((sample) => sample.usable === false);
   const policyHash = reliabilityPolicyHash();
@@ -44,8 +48,8 @@ export function assessIncident(samples, now = Date.now()) {
     return { action: "hold", reason: "insufficient_consecutive_failures", policyHash, recentSamples: recent.length, failureCount: failures.length };
   }
   const tail = recent.slice(-RELIABILITY_POLICY_V1.consecutiveFailureThreshold);
-  if (!tail.every((sample) => sample.usable === false)) {
-    return { action: "hold", reason: "failures_not_consecutive", policyHash, recentSamples: recent.length, failureCount: failures.length };
+  if (!tail.every((sample) => sample.usable === false && sample.endpoint === tail[0].endpoint)) {
+    return { action: "hold", reason: "failures_not_consecutive_or_same_endpoint", policyHash, recentSamples: recent.length, failureCount: failures.length };
   }
   const incidentMaterial = canonical({
     policyHash,

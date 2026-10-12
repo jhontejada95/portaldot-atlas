@@ -105,7 +105,7 @@ app.get("/v1/agent/status", async (_request, response, next) => {
       const observation = record.payload?.observation;
       const attestation = record.payload?.attestation;
       if (!observation || !attestation || !await verifyProbeEvidence(observation, attestation)) continue;
-      verified.push({ ...observation, evidenceId: record.id, recordedAt: record.recordedAt });
+      verified.push({ ...observation, evidenceId: record.id, attestationDigest: attestation.digest, recordedAt: record.recordedAt });
     }
     const latest = verified.sort((left, right) => Date.parse(right.observedAt) - Date.parse(left.observedAt))[0] ?? null;
     response.status(200).json({
