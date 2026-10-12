@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atlas Sentinel</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mark"><img src="assets/atlas-titan.png" alt="" /></span>
+        <div><p>PORTALDOT ATLAS</p><h1>Sentinel <span>field node</span></h1></div>
+        <span id="state" class="state">Loading</span>
+      </header>
+      <section class="status-card" aria-live="polite">
+        <div class="status-label"><p class="label">Latest accepted evidence</p><span aria-hidden="true">♡</span></div>
+        <strong id="latest">Checking local state…</strong>
+        <p id="detail">No device action has been taken in this popup.</p>
+      </section>
+      <section class="controls" aria-label="Sentinel configuration">
+        <label>Atlas backend <input id="backendUrl" type="url" inputmode="url" /></label>
+        <label>Check interval <select id="intervalMinutes"><option value="15">Every 15 minutes</option><option value="30">Every 30 minutes</option><option value="60">Every hour</option></select></label>
+        <label>Atlas link code <input id="linkCode" type="text" autocomplete="off" placeholder="atlas-…" /></label>
+        <label class="toggle"><input id="enabled" type="checkbox" /><span aria-hidden="true"></span><b>Enable scheduled live checks</b></label>
+      </section>
+      <p id="message" class="message"></p>
+      <div class="actions"><button id="save" class="secondary">Save settings</button><button id="link" class="secondary">Link wallet</button><button id="run" class="primary">Run live check</button></div>
+      <footer><span><b aria-hidden="true">⌁</b> Signed locally with P-256</span><span><b aria-hidden="true">◌</b> No browsing data collected</span></footer>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
