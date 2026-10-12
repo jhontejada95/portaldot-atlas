@@ -4,7 +4,8 @@ import "@fontsource/inter/600.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/plus-jakarta-sans/600.css";
 import "@fontsource/plus-jakarta-sans/700.css";
-import { MotionConfig, motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import "./landing.css";
 
 const proofItems = [
@@ -26,17 +27,36 @@ const architectureSteps = [
   ["04", "Your evidence journal", "Your linked wallet sees its own receipts; the public feed excludes them."],
 ];
 
+function DownloadSheet({ onClose }) {
+  useEffect(() => {
+    const closeOnEscape = (event) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  return <motion.div className="download-sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <motion.section className="download-sheet" role="dialog" aria-modal="true" aria-labelledby="download-sheet-title" initial={{ opacity: 0, y: 22, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: .98 }} transition={{ duration: .2 }}>
+      <button className="download-sheet-close" onClick={onClose} aria-label="Close download guide"><i className="fa-solid fa-xmark" aria-hidden="true" /></button>
+      <span className="download-sheet-icon"><i className="fa-solid fa-satellite-dish" aria-hidden="true" /></span><p className="section-label">ATLAS SENTINEL · CHROME MVP</p><h2 id="download-sheet-title">Install a check you control.</h2><p>Sentinel connects only to the Atlas and Portaldot endpoints needed for a check. It does not inspect browser history or tabs, share bandwidth, or create transactions.</p>
+      <a className="hero-primary" href="/downloads/atlas-sentinel-mvp.zip" download><i className="fa-solid fa-download" aria-hidden="true" /> Download Sentinel v0.1.1</a>
+      <div className="download-sheet-links"><a href="/learn#start">Read the guide first</a><a href="/dashboard?view=download">Open installation steps</a></div>
+      <small>Chrome Developer mode is required while Sentinel is an MVP package.</small>
+    </motion.section>
+  </motion.div>;
+}
+
 export function Landing() {
+  const [downloadOpen, setDownloadOpen] = useState(false);
   return <MotionConfig reducedMotion="user"><div className="landing-shell">
     <header className="landing-nav">
       <a className="landing-brand" href="/" aria-label="Atlas home"><span className="landing-mark"><i className="fa-solid fa-compass" aria-hidden="true" /></span><span>atlas</span></a>
-      <nav aria-label="Atlas overview"><a href="#how-it-works">How it works</a><a href="#privacy">Privacy</a><a href="#roadmap">Roadmap</a></nav>
+      <nav aria-label="Atlas overview"><a href="#how-it-works">How it works</a><a href="/learn">Learn</a><a href="#privacy">Privacy</a><a href="#roadmap">Roadmap</a></nav>
       <a className="nav-cta" href="/dashboard">Open dashboard <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" /></a>
     </header>
 
     <main>
       <section className="hero-section">
-        <motion.div className="hero-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .48, ease: "easeOut" }}><p className="hero-kicker"><span /> PORTALDOT RELIABILITY PROTOCOL</p><h1>Proof, not noise.<br /><em>Built together.</em></h1><p className="hero-lede">Atlas turns small, user-authorized Sentinel checks into signed, inspectable Portaldot reliability evidence — useful to the network and legible to the person contributing it.</p><div className="hero-actions"><a className="hero-primary" href="/dashboard?view=download">Get Sentinel <i className="fa-solid fa-download" aria-hidden="true" /></a><a className="hero-secondary" href="#for-contributors">What you get <i className="fa-solid fa-arrow-right" aria-hidden="true" /></a></div><p className="hero-note"><i className="fa-solid fa-shield-heart" aria-hidden="true" /> You control checks. Atlas never reads browser history or shares bandwidth.</p></motion.div>
+        <motion.div className="hero-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .48, ease: "easeOut" }}><p className="hero-kicker"><span /> PORTALDOT RELIABILITY PROTOCOL</p><h1>Proof, not noise.<br /><em>Built together.</em></h1><p className="hero-lede">Atlas turns small, user-authorized Sentinel checks into signed, inspectable Portaldot reliability evidence — useful to the network and legible to the person contributing it.</p><div className="hero-actions"><button className="hero-primary hero-button" onClick={() => setDownloadOpen(true)}>Get Sentinel <i className="fa-solid fa-download" aria-hidden="true" /></button><a className="hero-secondary" href="#for-contributors">What you get <i className="fa-solid fa-arrow-right" aria-hidden="true" /></a></div><p className="hero-note"><i className="fa-solid fa-shield-heart" aria-hidden="true" /> You control checks. Atlas never reads browser history or shares bandwidth.</p></motion.div>
         <motion.div className="atlas-orbital" initial={{ opacity: 0, scale: .92, rotate: -4 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ delay: .1, duration: .62, ease: "easeOut" }} aria-label="Atlas and Sentinel contribution loop">
           <motion.div className="orbital-ring ring-a" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 34, ease: "linear" }} />
           <motion.div className="orbital-ring ring-b" animate={{ rotate: -360 }} transition={{ repeat: Infinity, duration: 46, ease: "linear" }} />
@@ -56,6 +76,7 @@ export function Landing() {
 
       <section id="roadmap" className="roadmap-section"><div className="roadmap-top"><div><p className="section-label">BUILDING IN THE OPEN</p><h2>What you can use now, and what needs public proof first.</h2></div><a href="/dashboard">View the live workspace <i className="fa-solid fa-arrow-right" aria-hidden="true" /></a></div><div className="roadmap-grid"><article className="is-now"><span>AVAILABLE NOW</span><h3>Sentinel, receipts and live evidence</h3><p>Fresh Portaldot probes, signed evidence records, a private wallet-linked journal and the participant-side Sentinel runtime are working now.</p></article><article><span>ROADMAP — REQUIRES PUBLIC PORTALDOT DEPLOYMENT</span><h3>Epoch Credits</h3><p>Credits can only appear after a public epoch root and verifiable claim path exist. No balance, price or claim is shown before that proof.</p></article><article><span>ROADMAP — REQUIRES INDEPENDENT INFRASTRUCTURE</span><h3>Broader corroboration</h3><p>Atlas already supports an x402-paid independent probe. A durable multi-sentinel reliability layer needs publicly operated endpoints and independent connections.</p></article></div></section>
     </main>
-    <footer className="landing-footer"><span><span className="landing-mark small"><i className="fa-solid fa-compass" aria-hidden="true" /></span> Atlas for Portaldot</span><a href="/dashboard">Dashboard</a></footer>
+    <footer className="landing-footer"><span><span className="landing-mark small"><i className="fa-solid fa-compass" aria-hidden="true" /></span> Atlas for Portaldot</span><div><a href="/learn">Learn</a><a href="/dashboard">Dashboard</a></div></footer>
+    <AnimatePresence>{downloadOpen ? <DownloadSheet onClose={() => setDownloadOpen(false)} /> : null}</AnimatePresence>
   </div></MotionConfig>;
 }
