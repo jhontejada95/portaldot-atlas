@@ -49,6 +49,21 @@ secret. Creating the Blueprint prompts for the Neon connection string, the
 Base Sepolia receiver address, and the server signing key. This is deliberate:
 do not put those values in Git, a dashboard build, or the Sentinel package.
 
+After the Render service has a URL, set it as `VITE_ATLAS_API_ORIGIN` in
+Vercel (Production and Preview) before building the dashboard. This is public
+configuration, not a secret: it tells the browser where Atlas's API lives.
+Leave it unset locally so Vite keeps proxying `/v1` to `localhost:4030`.
+The deploy is not considered durable until this real post-deploy check passes:
+
+```powershell
+$env:ATLAS_API_URL = "https://your-render-service.onrender.com"
+npm run verify:hosted-postgres
+```
+
+It demands `/health` report `postgres`, makes a fresh live Portaldot
+observation, verifies its EIP-191 signature, and confirms the exact record was
+persisted in the public evidence feed.
+
 ## Verified x402 evidence
 
 On 2026-10-10, a Base Sepolia test payer bought a live Portaldot probe for

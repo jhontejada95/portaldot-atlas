@@ -19,6 +19,7 @@
     "verify:monitor": "node scripts/verify-live-monitor.mjs",
     "verify:sentinel": "node scripts/verify-sentinel-ingestion.mjs",
     "verify:epoch-plan": "node scripts/verify-epoch-plan.mjs",
+    "verify:hosted-postgres": "node scripts/verify-hosted-postgres.mjs",
     "verify:x402-challenge": "node scripts/verify-x402-challenge.mjs",
     "verify:live": "node scripts/verify-live-probe.mjs"
   },

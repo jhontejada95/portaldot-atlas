@@ -9,6 +9,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { web3Accounts, web3Enable, web3FromSource } from "@polkadot/extension-dapp";
 import { stringToHex } from "@polkadot/util";
 import { verifyEvidenceRecord } from "./verify-evidence.js";
+import { atlasApi } from "./api.js";
 
 const navigation = [
   ["overview", "Overview", "fa-table-columns"],
@@ -72,13 +73,13 @@ export function App() {
     setState("loading");
     setError("");
     try {
-      const response = await fetch("/v1/network-status", { headers: { accept: "application/json" } });
+      const response = await fetch(atlasApi("/v1/network-status"), { headers: { accept: "application/json" } });
       if (!response.ok) throw new Error(`Live Portaldot check was unavailable (${response.status}).`);
       const observation = await response.json();
-      const evidenceResponse = await fetch("/v1/evidence/recent?limit=25", { headers: { accept: "application/json" } });
+      const evidenceResponse = await fetch(atlasApi("/v1/evidence/recent?limit=25"), { headers: { accept: "application/json" } });
       if (!evidenceResponse.ok) throw new Error(`Evidence journal was unavailable (${evidenceResponse.status}).`);
       const evidence = await evidenceResponse.json();
-      const agentResponse = await fetch("/v1/agent/status", { headers: { accept: "application/json" } });
+      const agentResponse = await fetch(atlasApi("/v1/agent/status"), { headers: { accept: "application/json" } });
       setNetwork(observation);
       setRecords(Array.isArray(evidence.records) ? evidence.records : []);
       setAgentStatus(agentResponse.ok ? await agentResponse.json() : null);
@@ -98,13 +99,13 @@ export function App() {
       if (!extensions.length) throw new Error("Approve Atlas in SubWallet, then try again.");
       const [account] = await web3Accounts();
       if (!account) throw new Error("No Substrate account was shared with Atlas.");
-      const challengeResponse = await fetch("/v1/auth/challenge", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: account.address }) });
+      const challengeResponse = await fetch(atlasApi("/v1/auth/challenge"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ address: account.address }) });
       if (!challengeResponse.ok) throw new Error("Atlas could not create a wallet challenge.");
       const challenge = await challengeResponse.json();
       const injector = await web3FromSource(account.meta.source);
       if (!injector.signer.signRaw) throw new Error("This wallet cannot sign the Atlas login message.");
       const { signature } = await injector.signer.signRaw({ address: account.address, data: stringToHex(challenge.message), type: "bytes" });
-      const verifyResponse = await fetch("/v1/auth/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challengeId: challenge.challengeId, address: account.address, signature }) });
+      const verifyResponse = await fetch(atlasApi("/v1/auth/verify"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challengeId: challenge.challengeId, address: account.address, signature }) });
       if (!verifyResponse.ok) throw new Error("Atlas could not verify the wallet signature.");
       const session = await verifyResponse.json();
       localStorage.setItem("atlas-wallet-session", JSON.stringify(session));
@@ -113,7 +114,7 @@ export function App() {
       setWalletError(error instanceof Error ? error.message : "Wallet connection failed.");
     }
   }, []);
-  const authFetch = useCallback((path, options = {}) => fetch(path, { ...options, headers: { ...(options.headers ?? {}), authorization: `Bearer ${walletSession?.accessToken}` } }), [walletSession]);
+  const authFetch = useCallback((path, options = {}) => fetch(atlasApi(path), { ...options, headers: { ...(options.headers ?? {}), authorization: `Bearer ${walletSession?.accessToken}` } }), [walletSession]);
   const refreshPersonal = useCallback(async () => {
     if (!walletSession?.accessToken) {
       setPersonalEvidence([]);
