@@ -28,6 +28,11 @@ function avatarVariant(sentinelId = "atlas") {
   return [...sentinelId].reduce((sum, character) => (sum * 31 + character.charCodeAt(0)) >>> 0, 7) % 5;
 }
 
+function shortWallet(address) {
+  if (typeof address !== "string" || !address) return "";
+  return address.length > 12 ? `${address.slice(0, 4)}…${address.slice(-6)}` : address;
+}
+
 function applyTheme(preference = "system") {
   const resolved = preference === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : preference;
   document.documentElement.dataset.theme = resolved;
@@ -64,6 +69,8 @@ async function render() {
   $("#identityTitle").textContent = recovering ? "Reconnect Sentinel" : status.linkedWallet ? "Hello, explorer" : "Your Sentinel";
   $("#connectionState").textContent = recovering ? "New code needed" : status.linkedWallet ? "Connected" : "Not linked";
   $("#connectionState").className = `connection-state ${status.linkedWallet && !recovering ? "connected" : ""}`;
+  $("#linkedWallet").hidden = !status.linkedWallet;
+  $("#linkedWallet").textContent = status.linkedWallet ? `Wallet ${shortWallet(status.linkedWallet)}` : "";
   applyTheme(status.theme ?? defaults.theme);
   const live = Boolean(status.enabled && status.lastCheck && !status.lastError);
   $("#state").textContent = live ? "Active" : status.enabled ? "Needs attention" : "Paused";
