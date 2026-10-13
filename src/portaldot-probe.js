@@ -97,6 +97,29 @@ export async function samplePortaldot(endpoint, { expectedGenesis, timeoutMs } =
   }
 }
 
+/**
+ * Read-only preflight for the contracts runtime APIs. This never submits an
+ * extrinsic, uploads Wasm, instantiates a contract, or uses an account.
+ */
+export async function inspectPortaldotContractCapabilities(endpoint, { timeoutMs } = {}) {
+  const socket = await connect(endpoint, timeoutMs);
+  const counter = { next: 1 };
+  try {
+    const result = await request(socket, counter, "rpc_methods", [], timeoutMs);
+    const methods = Array.isArray(result?.methods) ? result.methods : [];
+    return {
+      schema: "atlas.portaldot-contract-capabilities.v1",
+      endpoint,
+      inspectedAt: new Date().toISOString(),
+      methodCount: methods.length,
+      contractsCall: methods.includes("contracts_call"),
+      contractsInstantiate: methods.includes("contracts_instantiate"),
+    };
+  } finally {
+    socket.close();
+  }
+}
+
 export function assertUsableProbe(probe, expectedGenesis) {
   if (probe.schema !== "atlas.portaldot.probe.v1") throw new Error("Unexpected probe schema");
   if (!probe.genesisHash || !probe.finalizedHash || !probe.finalizedHeader?.number) {

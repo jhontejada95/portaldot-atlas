@@ -20,6 +20,8 @@
     "verify:sentinel": "node scripts/verify-sentinel-ingestion.mjs",
     "verify:sentinel-key": "node scripts/verify-sentinel-key-canonicalization.mjs",
     "verify:epoch-plan": "node scripts/verify-epoch-plan.mjs",
+    "verify:epoch-contract-compat": "node scripts/verify-epoch-contract-compatibility.mjs",
+    "verify:contract-capabilities": "node scripts/verify-portaldot-contract-capabilities.mjs",
     "verify:hosted-postgres": "node scripts/verify-hosted-postgres.mjs",
     "verify:x402-challenge": "node scripts/verify-x402-challenge.mjs",
     "verify:live": "node scripts/verify-live-probe.mjs"

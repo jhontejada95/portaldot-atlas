@@ -282,5 +282,40 @@ mod atlas_epoch_credits {
             assert_eq!(contract.credits_of(accounts.alice), 25);
             assert_eq!(contract.credits_of(accounts.bob), 40);
         }
+
+        /// This vector is independently asserted by the JavaScript epoch
+        /// builder. Keep it fixed: it proves both implementations agree on
+        /// SCALE account/u128/hash encoding and Blake2x256 Merkle pairing.
+        #[ink::test]
+        fn canonical_epoch_builder_vectors_match_contract_hashes() {
+            // The public development Alice account behind
+            // 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY.
+            // ink!'s internal default test account is intentionally different.
+            let public_alice = AccountId::from([
+                0xd4, 0x35, 0x93, 0xc7, 0x15, 0xfd, 0xd3, 0x1c,
+                0x61, 0x14, 0x1a, 0xbd, 0x04, 0xa9, 0x9f, 0xd6,
+                0x82, 0x2c, 0x85, 0x58, 0x85, 0x4c, 0xcd, 0xe3,
+                0x9a, 0x56, 0x84, 0xe7, 0xa5, 0x6d, 0xa2, 0x7d,
+            ]);
+            let commitment = Hash::from([0x11u8; 32]);
+            assert_eq!(
+                AtlasEpochCredits::leaf(&public_alice, 42, &commitment),
+                Hash::from([
+                    0x32, 0xb8, 0x0e, 0x33, 0x53, 0xb9, 0x94, 0xa8,
+                    0x97, 0x2a, 0x1f, 0x5a, 0x92, 0xac, 0x9a, 0x29,
+                    0x7d, 0xaa, 0x8a, 0x16, 0xe2, 0x79, 0x55, 0x57,
+                    0xa5, 0xfc, 0x4b, 0xeb, 0x83, 0x43, 0xa9, 0x53,
+                ])
+            );
+            assert_eq!(
+                AtlasEpochCredits::pair_hash(&Hash::from([0x10u8; 32]), &Hash::from([0x20u8; 32])),
+                Hash::from([
+                    0xa1, 0x66, 0x80, 0x27, 0xa6, 0xf9, 0x19, 0xe3,
+                    0x2f, 0x62, 0x0e, 0x77, 0xea, 0x0e, 0xae, 0x8f,
+                    0x17, 0x84, 0x38, 0xda, 0xfa, 0x93, 0xfa, 0x2f,
+                    0xd4, 0x96, 0xb6, 0xfb, 0xb8, 0xce, 0x10, 0xd2,
+                ])
+            );
+        }
     }
 }

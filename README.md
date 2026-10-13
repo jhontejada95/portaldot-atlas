@@ -175,6 +175,17 @@ This proves a real compile/package only. The current public Portaldot endpoint
 does not expose a V3 testnet deployment path, so this artifact is not claimed
 as deployed until that path is available and exercised.
 
+The public Mainnet RPC can be checked read-only with:
+
+```powershell
+npm run verify:contract-capabilities
+```
+
+This confirms whether its Contracts runtime APIs are exposed; it never uploads
+Wasm, instantiates a contract, signs, or submits a transaction. A visible
+testnet path with faucet and explorer remains the required deployment gate;
+the presence of Mainnet APIs is not permission to deploy there.
+
 ## Deterministic epoch plans
 
 `src/epoch-builder.js` produces an epoch plan only from accepted Sentinel
@@ -187,7 +198,12 @@ Run the live-data verifier with:
 
 ```powershell
 npm run verify:epoch-plan
+npm run verify:epoch-contract-compat
 ```
+
+`verify:epoch-contract-compat` checks fixed SCALE/Blake2x256 vectors in the
+JavaScript builder against identical vectors asserted by the ink! contract.
+It creates no receipt, epoch, transaction, or claim.
 
 To inspect a closed window without publishing it, call the script directly:
 
