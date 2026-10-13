@@ -167,6 +167,21 @@ contact the paid x402 resource.
 
 ## On-chain contribution record
 
+`contracts/atlas-sentinel-registry` is an executable ink! contract that records
+only a 32-byte commitment to a Sentinel device key, its owner wallet and its
+active/revoked state. The public key itself, browser identity and observations
+stay off-chain. Its owner-only revocation keeps retired device keys auditable
+without allowing their silent reassignment.
+The API returns the deterministic `keyCommitment` at Sentinel registration;
+it is Blake2x256 over the P-256 public material only and is the exact value
+that will be registered if a public testnet deployment is approved.
+The locally built package contains a 16,614-byte Wasm and its `.contract`
+bundle SHA-256 is:
+
+```text
+ae27646e6a1facfcf2ef0a3c171d6a0f3b4247c1113dacab8bed55cf8cb598d9
+```
+
 `contracts/atlas-epoch-credits` is an executable ink! contract for immutable
 epoch roots and one-time, non-transferable Atlas Credit claims. Each epoch
 also commits its public policy hash and accepted-record count; each claim
@@ -219,6 +234,7 @@ Run the live-data verifier with:
 ```powershell
 npm run verify:epoch-plan
 npm run verify:epoch-contract-compat
+npm run verify:sentinel-registry-contract
 ```
 
 `verify:epoch-contract-compat` checks fixed SCALE/Blake2x256 vectors in the

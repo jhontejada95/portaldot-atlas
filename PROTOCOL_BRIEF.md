@@ -124,12 +124,16 @@ de pagos, no un requisito para resolver la corroboración.
 
 ## Contratos previstos
 
-1. `SentinelRegistry`: clave de centinela, estado y controles de registro.
+1. `SentinelRegistry`: compromiso de clave de centinela, estado y controles de registro.
 2. `EpochCredits`: raíz Merkle de cada época, créditos reclamados y emisión
    no transferible.
 3. `EvidencePolicy`: parámetros de época, máximos y versión de reglas.
 
-El primer componente ya existe como `contracts/atlas-epoch-credits`: publica
+Los dos primeros componentes ejecutables existen como
+`contracts/atlas-sentinel-registry` y `contracts/atlas-epoch-credits`.
+`atlas-sentinel-registry` conserva un compromiso de 32 bytes de la clave local,
+su wallet propietaria y su estado activo/revocado; no publica la clave P-256,
+identidad de navegador ni telemetría. `atlas-epoch-credits` publica
 una raíz inmutable por época y permite un reclamo Merkle una sola vez por
 centinela. Sus pruebas ejecutables cubren permisos del verificador, prueba
 inválida y doble reclamo. Aún no se declara desplegado hasta realizar una

@@ -190,7 +190,11 @@ app.post("/v1/sentinels/register", async (request, response, next) => {
       return response.status(400).json({ error: "invalid_sentinel_registration" });
     }
     const sentinel = await registerSentinel(sentinelId, publicKeyJwk);
-    response.status(201).json({ sentinelId, registeredAt: sentinel.registeredAt });
+    response.status(201).json({
+      sentinelId,
+      keyCommitment: sentinel.keyCommitment,
+      registeredAt: sentinel.registeredAt,
+    });
   } catch (error) {
     if (error.message === "sentinel_identity_conflict") {
       return response.status(409).json({ error: error.message });

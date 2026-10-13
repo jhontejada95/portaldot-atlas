@@ -22,3 +22,11 @@ contracts/atlas-epoch-credits/target/ink/CACHEDIR.TAG
 contracts/atlas-epoch-credits/target/.rustc_info.json
 contracts/atlas-epoch-credits/target/ink/.rustc_info.json
 contracts/atlas-epoch-credits/target/ink/.target
+contracts/atlas-sentinel-registry/target/debug/
+contracts/atlas-sentinel-registry/target/ink/wasm32-unknown-unknown/
+contracts/atlas-sentinel-registry/target/ink/release/
+contracts/atlas-sentinel-registry/target/CACHEDIR.TAG
+contracts/atlas-sentinel-registry/target/ink/CACHEDIR.TAG
+contracts/atlas-sentinel-registry/target/.rustc_info.json
+contracts/atlas-sentinel-registry/target/ink/.rustc_info.json
+contracts/atlas-sentinel-registry/target/ink/.target

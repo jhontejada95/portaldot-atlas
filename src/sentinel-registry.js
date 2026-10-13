@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { blake2AsHex } from "@polkadot/util-crypto";
 import { getDatabase } from "./database.js";
 
 const runtimeDirectory = path.resolve(process.env.ATLAS_RUNTIME_DIRECTORY ?? ".runtime");
@@ -15,6 +16,29 @@ function canonicalJson(value) {
 
 export function sameSentinelPublicKey(left, right) {
   return canonicalJson(left) === canonicalJson(right);
+}
+
+/**
+ * The only device-key value intended for the future on-chain registry. It is
+ * stable across harmless JWK property order/usage differences and never
+ * includes a private key, browser identity, IP address or observation data.
+ */
+export function sentinelKeyCommitment(publicKeyJwk) {
+  if (
+    publicKeyJwk?.kty !== "EC"
+    || publicKeyJwk?.crv !== "P-256"
+    || typeof publicKeyJwk?.x !== "string"
+    || typeof publicKeyJwk?.y !== "string"
+  ) {
+    throw new Error("invalid_sentinel_public_key");
+  }
+  return blake2AsHex(new TextEncoder().encode(canonicalJson({
+    schema: "atlas.sentinel-key-commitment.v1",
+    kty: publicKeyJwk.kty,
+    crv: publicKeyJwk.crv,
+    x: publicKeyJwk.x,
+    y: publicKeyJwk.y,
+  })), 256);
 }
 
 async function readRegistry() {
@@ -37,14 +61,18 @@ export async function registerSentinel(sentinelId, publicKeyJwk) {
       if (!sameSentinelPublicKey(existing.rows[0].public_key_jwk, publicKeyJwk)) {
         throw new Error("sentinel_identity_conflict");
       }
-      return { publicKeyJwk: existing.rows[0].public_key_jwk, registeredAt: new Date(existing.rows[0].registered_at).toISOString() };
+      return {
+        publicKeyJwk: existing.rows[0].public_key_jwk,
+        keyCommitment: sentinelKeyCommitment(existing.rows[0].public_key_jwk),
+        registeredAt: new Date(existing.rows[0].registered_at).toISOString(),
+      };
     }
     const registeredAt = new Date().toISOString();
     await database.query(
       `INSERT INTO atlas_sentinels (sentinel_id, public_key_jwk, registered_at) VALUES ($1, $2::jsonb, $3)`,
       [sentinelId, JSON.stringify(publicKeyJwk), registeredAt],
     );
-    return { publicKeyJwk, registeredAt };
+    return { publicKeyJwk, keyCommitment: sentinelKeyCommitment(publicKeyJwk), registeredAt };
   }
 
   await mkdir(runtimeDirectory, { recursive: true });
@@ -60,7 +88,10 @@ export async function registerSentinel(sentinelId, publicKeyJwk) {
     };
     await writeFile(registryPath, JSON.stringify(registry, null, 2), "utf8");
   }
-  return registry[sentinelId];
+  return {
+    ...registry[sentinelId],
+    keyCommitment: sentinelKeyCommitment(registry[sentinelId].publicKeyJwk),
+  };
 }
 
 export async function publicKeyForSentinel(sentinelId) {
