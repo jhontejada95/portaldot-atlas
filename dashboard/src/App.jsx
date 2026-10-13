@@ -4,7 +4,7 @@ import "@fontsource/inter/600.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/plus-jakarta-sans/600.css";
 import "@fontsource/plus-jakarta-sans/700.css";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { web3Accounts, web3Enable, web3FromSource } from "@polkadot/extension-dapp";
 import { stringToHex } from "@polkadot/util";
@@ -64,10 +64,13 @@ export function App() {
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("atlas-auto-refresh") === "true");
-  const [walletSession, setWalletSession] = useState(() => {
+  const [pendingWalletSession, setPendingWalletSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem("atlas-wallet-session") ?? "null"); } catch { return null; }
   });
+  const [walletSession, setWalletSession] = useState(null);
+  const walletSessionRef = useRef(null);
   const [walletError, setWalletError] = useState("");
+  const [walletNotice, setWalletNotice] = useState("");
   const [personalEvidence, setPersonalEvidence] = useState([]);
   const [linkedSentinels, setLinkedSentinels] = useState([]);
   const [sentinelLink, setSentinelLink] = useState(null);
@@ -98,6 +101,49 @@ export function App() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+  const clearWalletSession = useCallback(async (session, { revoke = true, notice = "" } = {}) => {
+    localStorage.removeItem("atlas-wallet-session");
+    walletSessionRef.current = null;
+    setPendingWalletSession(null);
+    setWalletSession(null);
+    setPersonalEvidence([]);
+    setLinkedSentinels([]);
+    setSentinelLink(null);
+    setProfileOpen(false);
+    if (notice) setWalletNotice(notice);
+    if (revoke && session?.accessToken) {
+      try {
+        await fetch(atlasApi("/v1/auth/logout"), { method: "POST", headers: { authorization: `Bearer ${session.accessToken}` } });
+      } catch {
+        // Local data has already been cleared. A failed network revocation never preserves private UI state.
+      }
+    }
+  }, []);
+  const validateWalletAccess = useCallback(async (session) => {
+    if (!session?.accessToken || !session?.address) return false;
+    if (Date.parse(session.expiresAt ?? "") <= Date.now()) {
+      await clearWalletSession(session, {
+        revoke: false,
+        notice: "Your Atlas wallet session has expired. Reconnect your wallet before viewing private Sentinel information.",
+      });
+      return false;
+    }
+    try {
+      const extensions = await web3Enable("Portaldot Atlas");
+      const accounts = extensions.length ? await web3Accounts() : [];
+      if (!accounts.some((account) => account.address === session.address)) throw new Error("wallet_access_not_shared");
+      walletSessionRef.current = session;
+      setWalletSession(session);
+      setPendingWalletSession(null);
+      setWalletNotice("");
+      return true;
+    } catch {
+      await clearWalletSession(session, {
+        notice: "SubWallet no longer shares this wallet with Atlas. Reconnect before viewing your private Sentinel information.",
+      });
+      return false;
+    }
+  }, [clearWalletSession]);
   const connectWallet = useCallback(async () => {
     setWalletError("");
     try {
@@ -115,12 +161,24 @@ export function App() {
       if (!verifyResponse.ok) throw new Error("Atlas could not verify the wallet signature.");
       const session = await verifyResponse.json();
       localStorage.setItem("atlas-wallet-session", JSON.stringify(session));
+      walletSessionRef.current = session;
+      setPendingWalletSession(null);
       setWalletSession(session);
+      setWalletNotice("");
     } catch (error) {
       setWalletError(error instanceof Error ? error.message : "Wallet connection failed.");
     }
   }, []);
-  const authFetch = useCallback((path, options = {}) => fetch(atlasApi(path), { ...options, headers: { ...(options.headers ?? {}), authorization: `Bearer ${walletSession?.accessToken}` } }), [walletSession]);
+  const authFetch = useCallback(async (path, options = {}) => {
+    const response = await fetch(atlasApi(path), { ...options, headers: { ...(options.headers ?? {}), authorization: `Bearer ${walletSession?.accessToken}` } });
+    if (response.status === 401) {
+      await clearWalletSession(walletSession, {
+        revoke: false,
+        notice: "Your Atlas wallet session ended. Reconnect your wallet before viewing private Sentinel information.",
+      });
+    }
+    return response;
+  }, [clearWalletSession, walletSession]);
   const refreshPersonal = useCallback(async () => {
     if (!walletSession?.accessToken) {
       setPersonalEvidence([]);
@@ -128,10 +186,27 @@ export function App() {
       return;
     }
     const [evidenceResponse, sentinelsResponse] = await Promise.all([authFetch("/v1/me/evidence"), authFetch("/v1/me/sentinels")]);
+    if (walletSessionRef.current?.accessToken !== walletSession.accessToken) return;
     if (evidenceResponse.ok) setPersonalEvidence((await evidenceResponse.json()).records ?? []);
     if (sentinelsResponse.ok) setLinkedSentinels((await sentinelsResponse.json()).sentinelIds ?? []);
   }, [authFetch, walletSession]);
   useEffect(() => { refreshPersonal().catch(() => setPersonalEvidence([])); }, [refreshPersonal]);
+  useEffect(() => {
+    if (!pendingWalletSession) return;
+    validateWalletAccess(pendingWalletSession);
+  }, [pendingWalletSession, validateWalletAccess]);
+  useEffect(() => {
+    if (!walletSession) return undefined;
+    const revalidate = () => {
+      if (document.visibilityState === "visible") validateWalletAccess(walletSession);
+    };
+    window.addEventListener("focus", revalidate);
+    document.addEventListener("visibilitychange", revalidate);
+    return () => {
+      window.removeEventListener("focus", revalidate);
+      document.removeEventListener("visibilitychange", revalidate);
+    };
+  }, [validateWalletAccess, walletSession]);
   useEffect(() => {
     const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const applyTheme = () => {
@@ -249,8 +324,9 @@ export function App() {
   if (active === "alerts") content = renderAlerts();
   if (active === "download") content = renderDownload();
   if (active === "settings") content = renderSettings();
+  if (walletNotice) content = <section className="wallet-access-dialog" role="dialog" aria-modal="true" aria-labelledby="wallet-access-title"><div className="wallet-access-card"><span className="wallet-access-icon"><i className="fa-solid fa-wallet" aria-hidden="true" /></span><p className="eyebrow">WALLET ACCESS REQUIRED</p><h1 id="wallet-access-title">Reconnect your wallet</h1><p>{walletNotice}</p>{walletError ? <p className="wallet-error">{walletError}</p> : null}<button className="primary-button" onClick={connectWallet}>Connect SubWallet <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button><button className="text-button" onClick={() => setWalletNotice("")}>Browse public Atlas</button></div></section>;
 
-  const disconnectWallet = () => { localStorage.removeItem("atlas-wallet-session"); setWalletSession(null); setPersonalEvidence([]); setLinkedSentinels([]); setSentinelLink(null); setProfileOpen(false); };
+  const disconnectWallet = () => { clearWalletSession(walletSession); };
   const resolvedTheme = theme === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : theme;
   const isDarkTheme = resolvedTheme === "dark";
   const toggleQuickTheme = () => setTheme(isDarkTheme ? "light" : "dark");

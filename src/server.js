@@ -9,7 +9,7 @@ import { appendLiveEvidence, recentLiveEvidence } from "./evidence-store.js";
 import { assessIncident, reliabilityPolicyHash } from "./reliability-policy.js";
 import { publicKeyForSentinel, registerSentinel } from "./sentinel-registry.js";
 import { verifySentinelAttestation } from "./sentinel-attestation.js";
-import { claimSentinelLink, createSentinelLink, createWalletChallenge, initializeWalletAuth, sentinelsForWallet, verifyWalletChallenge, walletForRequest, walletForSentinel } from "./wallet-auth.js";
+import { claimSentinelLink, createSentinelLink, createWalletChallenge, initializeWalletAuth, revokeWalletSession, sentinelsForWallet, verifyWalletChallenge, walletForRequest, walletForSentinel } from "./wallet-auth.js";
 import { databaseEnabled } from "./database.js";
 
 dotenv.config({ path: process.env.ATLAS_ENV_FILE ?? ".env.local" });
@@ -143,6 +143,11 @@ app.post("/v1/auth/verify", async (request, response, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+app.post("/v1/auth/logout", async (request, response) => {
+  await revokeWalletSession(request);
+  response.sendStatus(204);
 });
 
 app.post("/v1/sentinel-links", async (request, response) => {

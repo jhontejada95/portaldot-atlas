@@ -132,6 +132,17 @@ export async function walletForRequest(request) {
   return sessions.get(token)?.address ?? null;
 }
 
+export async function revokeWalletSession(request) {
+  const token = request.get("authorization")?.match(/^Bearer ([a-zA-Z0-9_-]+)$/)?.[1];
+  if (!token) return false;
+  const database = await getDatabase();
+  if (database) {
+    const result = await database.query(`DELETE FROM atlas_wallet_sessions WHERE access_token = $1`, [token]);
+    return result.rowCount > 0;
+  }
+  return sessions.delete(token);
+}
+
 export async function createSentinelLink(address) {
   const linkCode = `atlas-${randomUUID().replaceAll("-", "").slice(0, 12)}`;
   const expiresAt = expiresIn(LINK_TTL_MS);
