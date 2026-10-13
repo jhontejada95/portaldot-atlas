@@ -138,6 +138,29 @@ ejecución real contra infraestructura Portaldot apta para contratos.
 No se creará un token fungible o transferible mientras no exista una utilidad
 real y una revisión de riesgos separada.
 
+## Orden de ejecución y gates externos
+
+El orden no se invierte: primero el ciclo comprobable `receipt → epoch root →
+proof → claim` de Credits no transferibles; después, y sólo sobre evidencia
+útil ya reclamada, pueden evaluarse Sentinel Modules como NFTs transferibles
+con un perk activo únicamente mientras estén stakeados. Un marketplace,
+paquetes aleatorios o incentivos de precio no pertenecen al MVP.
+
+La aleatoriedad verificable tampoco es un atajo para el núcleo. A fecha de la
+comprobación técnica de 2026-10-13, Atlas no tiene una ruta verificable de
+VRF hacia Portaldot. No se incorporará Chainlink VRF ni un puente de
+aleatoriedad hasta poder demostrar extremo a extremo el coordinador, la
+entrega de la prueba y su verificación por el contrato de destino. Si
+Portaldot publica una fuente nativa con interfaz de contrato documentada y
+probable, se evaluará primero; de otro modo la función queda fuera de alcance.
+
+Antes de cualquier escritura pública, Atlas exige: (1) RPC de prueba pública
+con `pallet-contracts` compatible, (2) faucet o fondos de prueba obtenidos por
+el usuario, (3) explorador que haga visibles despliegue y llamadas, (4)
+aprobación humana para firmar/desplegar y (5) dos Sentinel desde conexiones
+físicas independientes. La comprobación de APIs del RPC Mainnet es sólo
+lectura y no satisface estos gates.
+
 ## Evidencia mínima, sin mocks
 
 | Gate | Prueba requerida |
