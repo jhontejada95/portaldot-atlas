@@ -133,6 +133,14 @@ telemetry.
 Settlement is not claimed until a separate payer wallet makes an actual,
 authorized x402 request and the resulting transaction is recorded publicly.
 
+`npm run probe:paid` is deliberately blocked by default. It first re-reads the
+unpaid `402` offer and refuses to pay unless its network, exact amount and
+reviewed receiver match the hard gates. It additionally requires the one-time
+confirmation value `ATLAS_PAID_PROBE_CONFIRMATION=approve-atlas-x402-once`.
+Supplying a private key alone is never enough. Do not set that confirmation or
+run the command without explicit human authorization for a real testnet
+payment.
+
 ## Agent boundary
 
 `npm run agent:observe` performs one real read-only Portaldot observation and
@@ -185,6 +193,18 @@ This confirms whether its Contracts runtime APIs are exposed; it never uploads
 Wasm, instantiates a contract, signs, or submits a transaction. A visible
 testnet path with faucet and explorer remains the required deployment gate;
 the presence of Mainnet APIs is not permission to deploy there.
+
+When organizers publish a testnet endpoint, its genesis hash and a public
+explorer, place those three values in the separate `ATLAS_CONTRACT_*`
+variables and run:
+
+```powershell
+npm run verify:contract-deployment-preflight
+```
+
+The preflight refuses any value other than `testnet` and rejects Mainnet's
+genesis hash. Passing it is still not deployment: a human must explicitly
+authorize the later signing and testnet transaction.
 
 ## Deterministic epoch plans
 
