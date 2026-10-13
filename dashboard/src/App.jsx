@@ -64,14 +64,11 @@ export function App() {
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("atlas-auto-refresh") === "true");
-  const [pendingWalletSession, setPendingWalletSession] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("atlas-wallet-session") ?? "null"); } catch { return null; }
-  });
   const [walletSession, setWalletSession] = useState(null);
   const walletSessionRef = useRef(null);
   const walletSubscriptionRef = useRef(null);
   const [walletError, setWalletError] = useState("");
-  const [walletNotice, setWalletNotice] = useState("");
+  const [walletAccessOpen, setWalletAccessOpen] = useState(false);
   const [personalEvidence, setPersonalEvidence] = useState([]);
   const [linkedSentinels, setLinkedSentinels] = useState([]);
   const [sentinelLink, setSentinelLink] = useState(null);
@@ -102,19 +99,21 @@ export function App() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
-  const clearWalletSession = useCallback(async (session, { revoke = true, notice = "" } = {}) => {
+  const clearWalletSession = useCallback(async (session, { revoke = true, prompt = false, message = "" } = {}) => {
     const unsubscribe = walletSubscriptionRef.current;
     walletSubscriptionRef.current = null;
     unsubscribe?.();
     localStorage.removeItem("atlas-wallet-session");
     walletSessionRef.current = null;
-    setPendingWalletSession(null);
     setWalletSession(null);
     setPersonalEvidence([]);
     setLinkedSentinels([]);
     setSentinelLink(null);
     setProfileOpen(false);
-    if (notice) setWalletNotice(notice);
+    if (prompt) {
+      setWalletError(message);
+      setWalletAccessOpen(true);
+    }
     if (revoke && session?.accessToken) {
       try {
         await fetch(atlasApi("/v1/auth/logout"), { method: "POST", headers: { authorization: `Bearer ${session.accessToken}` } });
@@ -131,14 +130,15 @@ export function App() {
       walletSubscriptionRef.current = await web3AccountsSubscribe((accounts) => {
         if (accounts.some((account) => account.address === session.address)) return;
         clearWalletSession(session, {
-          notice: "SubWallet stopped sharing this wallet with Atlas. Reconnect before viewing your private Sentinel information.",
+          prompt: true,
+          message: "SubWallet stopped sharing this wallet with Atlas. Reconnect before viewing your private Sentinel information.",
         });
       });
     } catch {
       // Account subscriptions are optional across compatible wallets. The current session remains usable until the page reloads or the API rejects it.
     }
   }, [clearWalletSession]);
-  const connectWallet = useCallback(async () => {
+  const performWalletConnection = useCallback(async () => {
     setWalletError("");
     try {
       const extensions = await web3Enable("Portaldot Atlas");
@@ -154,22 +154,25 @@ export function App() {
       const verifyResponse = await fetch(atlasApi("/v1/auth/verify"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ challengeId: challenge.challengeId, address: account.address, signature }) });
       if (!verifyResponse.ok) throw new Error("Atlas could not verify the wallet signature.");
       const session = await verifyResponse.json();
-      localStorage.setItem("atlas-wallet-session", JSON.stringify(session));
       walletSessionRef.current = session;
-      setPendingWalletSession(null);
       setWalletSession(session);
-      setWalletNotice("");
+      setWalletAccessOpen(false);
       await watchWalletAccess(session);
     } catch (error) {
       setWalletError(error instanceof Error ? error.message : "Wallet connection failed.");
     }
   }, [watchWalletAccess]);
+  const connectWallet = () => {
+    setWalletError("");
+    setWalletAccessOpen(true);
+  };
   const authFetch = useCallback(async (path, options = {}) => {
     const response = await fetch(atlasApi(path), { ...options, headers: { ...(options.headers ?? {}), authorization: `Bearer ${walletSession?.accessToken}` } });
     if (response.status === 401) {
       await clearWalletSession(walletSession, {
         revoke: false,
-        notice: "Your Atlas wallet session ended. Reconnect your wallet before viewing private Sentinel information.",
+        prompt: true,
+        message: "Your Atlas wallet session ended. Reconnect your wallet before viewing private Sentinel information.",
       });
     }
     return response;
@@ -187,11 +190,10 @@ export function App() {
   }, [authFetch, walletSession]);
   useEffect(() => { refreshPersonal().catch(() => setPersonalEvidence([])); }, [refreshPersonal]);
   useEffect(() => {
-    if (!pendingWalletSession) return;
-    clearWalletSession(pendingWalletSession, {
-      notice: "Reconnect your wallet to view private Sentinel information. Atlas does not restore a prior wallet session automatically.",
-    });
-  }, [clearWalletSession, pendingWalletSession]);
+    let storedSession = null;
+    try { storedSession = JSON.parse(localStorage.getItem("atlas-wallet-session") ?? "null"); } catch { storedSession = null; }
+    if (storedSession?.accessToken) clearWalletSession(storedSession);
+  }, [clearWalletSession]);
   useEffect(() => {
     const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const applyTheme = () => {
@@ -309,14 +311,14 @@ export function App() {
   if (active === "alerts") content = renderAlerts();
   if (active === "download") content = renderDownload();
   if (active === "settings") content = renderSettings();
-  if (walletNotice) content = <section className="wallet-access-dialog" role="dialog" aria-modal="true" aria-labelledby="wallet-access-title"><div className="wallet-access-card"><span className="wallet-access-icon"><i className="fa-solid fa-wallet" aria-hidden="true" /></span><p className="eyebrow">WALLET ACCESS REQUIRED</p><h1 id="wallet-access-title">Reconnect your wallet</h1><p>{walletNotice}</p>{walletError ? <p className="wallet-error">{walletError}</p> : null}<button className="primary-button" onClick={connectWallet}>Connect SubWallet <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button><button className="text-button" onClick={() => setWalletNotice("")}>Browse public Atlas</button></div></section>;
+  if (walletAccessOpen) content = <section className="wallet-access-dialog" role="dialog" aria-modal="true" aria-labelledby="wallet-access-title"><div className="wallet-access-card"><span className="wallet-access-icon"><i className="fa-solid fa-wallet" aria-hidden="true" /></span><p className="eyebrow">PRIVATE ATLAS ACCESS</p><h1 id="wallet-access-title">Connect your wallet</h1><p>Connect SubWallet only when you want to view your private Sentinel evidence. Atlas public network information stays available without a wallet.</p>{walletError ? <p className="wallet-error">{walletError}</p> : null}<button className="primary-button" onClick={performWalletConnection}>Connect SubWallet <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button><button className="text-button" onClick={() => setWalletAccessOpen(false)}>Browse public Atlas</button></div></section>;
 
   const disconnectWallet = () => { clearWalletSession(walletSession); };
   const resolvedTheme = theme === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : theme;
   const isDarkTheme = resolvedTheme === "dark";
   const toggleQuickTheme = () => setTheme(isDarkTheme ? "light" : "dark");
-  const identityLabel = walletSession ? "Connected wallet" : "Hello, explorer";
-  const identityDetail = walletSession ? shortHash(walletSession.address, 4) : "Connect when you are ready";
+  const identityLabel = walletSession ? "Connected wallet" : "Connect wallet";
+  const identityDetail = walletSession ? shortHash(walletSession.address, 4) : "Unlock private activity";
   const identityAvatar = avatarVariant(walletSession?.address);
 
   return <MotionConfig reducedMotion="user"><div className="app-shell"><aside className="sidebar"><a className="brand" href="/"><span className="brand-mark"><i className="fa-solid fa-compass" aria-hidden="true" /></span><span>atlas</span></a><nav aria-label="Atlas sections">{navigation.map(([id, label, icon]) => <button className={active === id ? "nav-item active" : "nav-item"} key={id} onClick={() => setActive(id)}><i className={`fa-solid ${icon}`} aria-hidden="true" /><span>{label}</span></button>)}</nav><div className="sidebar-footer"><span className={`connection-dot ${statusTone(state)}`} /><div><strong>{state === "live" ? "Live source" : state === "error" ? "Source unavailable" : "Checking source"}</strong><small>{updatedAt ? `Updated ${formatTime(updatedAt)}` : "Awaiting live response"}</small></div></div></aside><main className="main-content"><header className="topbar"><button className="crumb" onClick={() => setActive("overview")}><i className="fa-solid fa-grid-2" aria-hidden="true" /> Atlas workspace</button><div className="topbar-status"><span className={`status-pill ${statusTone(state)}`}><i className="fa-solid fa-circle" aria-hidden="true" /> {state === "live" ? "Portaldot connected" : state === "error" ? "Portaldot unavailable" : "Contacting Portaldot"}</span><button className="quick-theme-toggle" type="button" onClick={toggleQuickTheme} aria-label={isDarkTheme ? "Switch dashboard to light mode" : "Switch dashboard to dark mode"} title={isDarkTheme ? "Light mode" : "Dark mode"}><i className={`fa-solid ${isDarkTheme ? "fa-sun" : "fa-moon"}`} aria-hidden="true" /><span>{isDarkTheme ? "Light" : "Dark"}</span></button><div className="profile-wrap"><button className="profile-trigger" onClick={() => walletSession ? setProfileOpen((value) => !value) : connectWallet()} aria-expanded={walletSession ? profileOpen : undefined} aria-label={walletSession ? "Open wallet profile" : "Connect wallet"}><span className={`identity-avatar ${identityAvatar}`} aria-hidden="true"><i className={`fa-solid ${walletSession ? "fa-wallet" : "fa-user-astronaut"}`} /></span><span className="identity-copy"><strong>{identityLabel}</strong><small>{identityDetail}</small></span><i className="fa-solid fa-chevron-down profile-chevron" aria-hidden="true" /></button>{profileOpen ? <motion.section className="profile-menu" initial={{ opacity: 0, y: -8, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: .18 }}><p className="eyebrow">CONNECTED WALLET</p><strong className="mono">{shortHash(walletSession.address, 8)}</strong><p>{clientEvidence.length} accepted Sentinel receipt{clientEvidence.length === 1 ? "" : "s"} visible in this browser.</p><button className="text-button" onClick={() => { setActive("sentinel"); setProfileOpen(false); }}>My Sentinel <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button><button className="text-button" onClick={() => { setActive("settings"); setProfileOpen(false); }}>Appearance & settings <i className="fa-solid fa-arrow-right" aria-hidden="true" /></button><button className="profile-disconnect" onClick={disconnectWallet}>Disconnect this browser</button></motion.section> : null}</div></div></header><AnimatePresence mode="wait"><motion.div key={active} className="page-content" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: .24, ease: "easeOut" }}>{content}</motion.div></AnimatePresence></main></div></MotionConfig>;
