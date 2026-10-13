@@ -3,6 +3,7 @@ node_modules/
 .env.local
 evidence/
 .runtime/
+.local-portaldot-node/
 sentinel-extension/.runtime/
 
 # Local design source material and browser-capture workspaces. The shipped
