@@ -57,11 +57,13 @@ async function render() {
   $("#intervalMinutes").value = String(status.intervalMinutes ?? defaults.intervalMinutes);
   $("#enabled").checked = Boolean(status.enabled);
   $("#linkCode").value = status.linkCode ?? "";
+  const recovering = Boolean(status.needsFreshLink);
+  $("#recovery").hidden = !recovering;
   $("#profileAvatar").dataset.variant = String(avatarVariant(status.sentinelId));
   $("#profileAvatar").setAttribute("aria-label", "A stable local avatar generated from this Sentinel's device identity");
-  $("#identityTitle").textContent = status.linkedWallet ? "Hello, explorer" : "Your Sentinel";
-  $("#connectionState").textContent = status.linkedWallet ? "Connected" : "Not linked";
-  $("#connectionState").className = `connection-state ${status.linkedWallet ? "connected" : ""}`;
+  $("#identityTitle").textContent = recovering ? "Reconnect Sentinel" : status.linkedWallet ? "Hello, explorer" : "Your Sentinel";
+  $("#connectionState").textContent = recovering ? "New code needed" : status.linkedWallet ? "Connected" : "Not linked";
+  $("#connectionState").className = `connection-state ${status.linkedWallet && !recovering ? "connected" : ""}`;
   applyTheme(status.theme ?? defaults.theme);
   const live = Boolean(status.enabled && status.lastCheck && !status.lastError);
   $("#state").textContent = live ? "Active" : status.enabled ? "Needs attention" : "Paused";
@@ -108,12 +110,10 @@ $("#run").addEventListener("click", async () => {
 });
 
 $("#repairIdentity").addEventListener("click", async () => {
-  const confirmed = window.confirm("Create a new local device identity? The old server identity stays intact, but you will need a fresh Atlas link code to connect this Sentinel again.");
-  if (!confirmed) return;
   setBusy(true);
   const result = await send({ type: "atlas.repair-identity" });
   setBusy(false);
-  if (result?.ok) setMessage("New device identity created and scheduled checks paused. Generate a fresh link code in Atlas before linking this Sentinel again.", "success");
+  if (result?.ok) setMessage("New device identity ready. Generate a fresh code in Atlas Dashboard, paste it here, then link your wallet.", "success");
   else setMessage(resultMessage(result, "The device identity could not be repaired."), "error");
   await render();
 });

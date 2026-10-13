@@ -5,6 +5,18 @@ import { getDatabase } from "./database.js";
 const runtimeDirectory = path.resolve(process.env.ATLAS_RUNTIME_DIRECTORY ?? ".runtime");
 const registryPath = path.join(runtimeDirectory, "sentinel-registry.json");
 
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export function sameSentinelPublicKey(left, right) {
+  return canonicalJson(left) === canonicalJson(right);
+}
+
 async function readRegistry() {
   try {
     return JSON.parse(await readFile(registryPath, "utf8"));
@@ -22,7 +34,7 @@ export async function registerSentinel(sentinelId, publicKeyJwk) {
       [sentinelId],
     );
     if (existing.rowCount) {
-      if (JSON.stringify(existing.rows[0].public_key_jwk) !== JSON.stringify(publicKeyJwk)) {
+      if (!sameSentinelPublicKey(existing.rows[0].public_key_jwk, publicKeyJwk)) {
         throw new Error("sentinel_identity_conflict");
       }
       return { publicKeyJwk: existing.rows[0].public_key_jwk, registeredAt: new Date(existing.rows[0].registered_at).toISOString() };
@@ -38,8 +50,7 @@ export async function registerSentinel(sentinelId, publicKeyJwk) {
   await mkdir(runtimeDirectory, { recursive: true });
   const registry = await readRegistry();
   const existing = registry[sentinelId];
-  const encodedKey = JSON.stringify(publicKeyJwk);
-  if (existing && JSON.stringify(existing.publicKeyJwk) !== encodedKey) {
+  if (existing && !sameSentinelPublicKey(existing.publicKeyJwk, publicKeyJwk)) {
     throw new Error("sentinel_identity_conflict");
   }
   if (!existing) {

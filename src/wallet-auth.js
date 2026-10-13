@@ -138,12 +138,16 @@ export async function createSentinelLink(address) {
   const database = await getDatabase();
   if (database) {
     await pruneExpiredRows();
+    await database.query(`DELETE FROM atlas_sentinel_links WHERE address = $1`, [address]);
     await database.query(
       `INSERT INTO atlas_sentinel_links (link_code, address, expires_at) VALUES ($1, $2, $3)`,
       [linkCode, address, expiresAt.toISOString()],
     );
   } else {
     cleanExpired(links);
+    for (const [existingCode, link] of links.entries()) {
+      if (link.address === address) links.delete(existingCode);
+    }
     links.set(linkCode, { address, expiresAt: expiresAt.getTime() });
   }
   return { linkCode, expiresAt: expiresAt.toISOString() };

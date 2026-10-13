@@ -56,7 +56,7 @@ async function registerDevice(config, device) {
 
 async function repairIdentity() {
   await chrome.storage.local.remove(["sentinelId", "sentinelPublicJwk", "sentinelPrivateJwk", "linkedWallet", "linkCode", "lastCheck", "lastError", "lastErrorCode"]);
-  await chrome.storage.local.set({ enabled: false });
+  await chrome.storage.local.set({ enabled: false, needsFreshLink: true });
   await chrome.alarms.clear(ALARM_NAME);
   const device = await identity();
   return { ok: true, sentinelId: device.sentinelId };
@@ -171,7 +171,7 @@ async function linkWallet(linkCode) {
     body: JSON.stringify({ sentinelId: device.sentinelId, linkCode }),
   });
   if (!response.ok) throw new Error("Atlas link code was unavailable or expired");
-  await chrome.storage.local.set({ linkCode, linkedWallet: (await response.json()).wallet });
+  await chrome.storage.local.set({ linkCode, linkedWallet: (await response.json()).wallet, needsFreshLink: false });
   return { linked: true };
 }
 
@@ -221,7 +221,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (message?.type === "atlas.status") {
-    chrome.storage.local.get(["lastCheck", "lastError", "lastErrorCode", "enabled", "intervalMinutes", "backendUrl", "sentinelId", "linkCode", "linkedWallet", "theme"]).then(sendResponse);
+    chrome.storage.local.get(["lastCheck", "lastError", "lastErrorCode", "enabled", "intervalMinutes", "backendUrl", "sentinelId", "linkCode", "linkedWallet", "needsFreshLink", "theme"]).then(sendResponse);
     return true;
   }
 });
