@@ -72,6 +72,7 @@ export function App() {
   const [walletAccessOpen, setWalletAccessOpen] = useState(false);
   const [personalEvidence, setPersonalEvidence] = useState([]);
   const [linkedSentinels, setLinkedSentinels] = useState([]);
+  const [sentinelRuntime, setSentinelRuntime] = useState({ state: "unknown" });
   const [sentinelLink, setSentinelLink] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("atlas-theme") ?? "system");
   const [profileOpen, setProfileOpen] = useState(false);
@@ -195,30 +196,55 @@ export function App() {
     }
   }, [authFetch, walletSession]);
   useEffect(() => { refreshPersonal().catch(() => setPersonalEvidence([])); }, [refreshPersonal]);
+  const requestSentinelRuntime = useCallback((walletAddress) => new Promise((resolve) => {
+    if (!walletAddress) return resolve({ state: "unknown" });
+    const requestId = crypto.randomUUID();
+    let settled = false;
+    const finish = (nextState) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      window.removeEventListener("atlas-sentinel-status-response", receiveStatus);
+      resolve(nextState);
+    };
+    const receiveStatus = (event) => {
+      const detail = event.detail;
+      if (detail?.source !== "portaldot-atlas-sentinel" || detail?.requestId !== requestId) return;
+      finish({ state: "detected", linkedToWallet: Boolean(detail.linkedToWallet), enabled: Boolean(detail.enabled), version: detail.version ?? "unknown" });
+    };
+    window.addEventListener("atlas-sentinel-status-response", receiveStatus);
+    const timeout = window.setTimeout(() => finish({ state: "not_detected" }), 900);
+    window.dispatchEvent(new CustomEvent("atlas-sentinel-status-request", { detail: { requestId, walletAddress } }));
+  }), []);
+  useEffect(() => {
+    if (!walletSession?.address) {
+      setSentinelRuntime({ state: "unknown" });
+      return undefined;
+    }
+    let cancelled = false;
+    const inspectSentinel = async () => {
+      const nextState = await requestSentinelRuntime(walletSession.address);
+      if (!cancelled) setSentinelRuntime(nextState);
+    };
+    inspectSentinel();
+    const timer = window.setInterval(inspectSentinel, 10_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [requestSentinelRuntime, walletSession?.address]);
   useEffect(() => {
     let storedSession = null;
     try { storedSession = JSON.parse(sessionStorage.getItem(WALLET_SESSION_KEY) ?? "null"); } catch { storedSession = null; }
     if (!storedSession?.accessToken || !storedSession?.address) return undefined;
     let cancelled = false;
-    const restoreWalletSession = async () => {
-      try {
-        // This reads existing wallet permission only. It never opens a wallet prompt.
-        const accounts = await web3Accounts();
-        if (cancelled) return;
-        if (!accounts.some((account) => account.address === storedSession.address)) {
-          await clearWalletSession(storedSession);
-          return;
-        }
-        walletSessionRef.current = storedSession;
-        setWalletSession(storedSession);
-        await watchWalletAccess(storedSession);
-      } catch {
-        if (!cancelled) await clearWalletSession(storedSession);
-      }
-    };
-    restoreWalletSession();
+    // The Polkadot wallet API requires web3Enable before it may list accounts.
+    // Calling it here would re-open a permission request after the user has revoked Atlas.
+    // A same-tab session therefore resumes without a wallet prompt; explicit disconnect,
+    // expiry, an API 401, and the active-session account subscription still revoke it.
+    if (!cancelled) {
+      walletSessionRef.current = storedSession;
+      setWalletSession(storedSession);
+    }
     return () => { cancelled = true; };
-  }, [clearWalletSession, watchWalletAccess]);
+  }, []);
   useEffect(() => {
     if (!walletSession?.accessToken) return undefined;
     const syncPersonalActivity = () => refreshPersonal().catch(() => setPersonalEvidence([]));
@@ -328,7 +354,7 @@ export function App() {
           <h2 className="mono">{shortHash(walletSession.address, 12)}</h2>
           <p>First install Atlas Sentinel. In this MVP it downloads as a package for Chrome’s <strong>Load unpacked</strong> flow; when Atlas is published, this button will open Chrome Web Store instead.</p>
           <a className="primary-button download-sentinel" href="/downloads/atlas-sentinel-mvp.zip" download><i className="fa-solid fa-download" aria-hidden="true" /> Download Sentinel</a>
-          {linkedSentinels.length ? <div className="sentinel-linked-status"><span><i className="fa-solid fa-circle-check" aria-hidden="true" /> Sentinel linked</span><p>{linkedSentinels.length === 1 ? `Device ${shortHash(linkedSentinels[0], 9)} is linked to this wallet.` : `${linkedSentinels.length} Sentinel devices are linked to this wallet.`} New accepted checks sync while this tab is open.</p><button className="secondary-button compact-button" onClick={() => refreshPersonal()}><i className="fa-solid fa-rotate" aria-hidden="true" /> Refresh activity</button></div> : sentinelLink ? <><p>Paste this one-time code into Sentinel, then choose <strong>Link wallet</strong>. It expires {formatTime(sentinelLink.expiresAt)}.</p><code className="link-code">{sentinelLink.linkCode}</code><div className="link-code-actions"><button className="code-refresh-button" onClick={createSentinelLink}><i className="fa-solid fa-rotate" aria-hidden="true" /> Generate a new code</button><small>Only use this after recreating a Sentinel identity. It replaces the unused code above.</small></div></> : <><p>After the extension is ready, create a one-time link code to bind this wallet to its device proof.</p><button className="secondary-button" onClick={createSentinelLink}>I installed Sentinel — create link code</button></>}
+          {linkedSentinels.length ? <div className="sentinel-linked-status"><span><i className="fa-solid fa-link" aria-hidden="true" /> Registered Sentinel identities</span><p>{linkedSentinels.length === 1 ? `Device ${shortHash(linkedSentinels[0], 9)} remains associated with this wallet.` : `${linkedSentinels.length} Sentinel identities remain associated with this wallet.`} This is durable server history, not a claim that an extension is installed right now.</p><p className={`sentinel-runtime ${sentinelRuntime.state === "detected" && sentinelRuntime.linkedToWallet ? "confirmed" : ""}`}><i className={`fa-solid ${sentinelRuntime.state === "detected" && sentinelRuntime.linkedToWallet ? "fa-circle-check" : sentinelRuntime.state === "not_detected" ? "fa-puzzle-piece" : "fa-circle-notch fa-spin"}`} aria-hidden="true" /> {sentinelRuntime.state === "detected" ? sentinelRuntime.linkedToWallet ? `This browser: Sentinel ${sentinelRuntime.version} is linked to this wallet and checks are ${sentinelRuntime.enabled ? "enabled" : "paused"}.` : `This browser: Sentinel ${sentinelRuntime.version} is installed but linked to a different wallet.` : sentinelRuntime.state === "not_detected" ? "Sentinel is not detected in this dashboard tab. Load it, then refresh this page to verify the current browser." : "Checking this browser for Sentinel…"}</p><button className="secondary-button compact-button" onClick={() => { refreshPersonal(); requestSentinelRuntime(walletSession.address).then(setSentinelRuntime); }}><i className="fa-solid fa-rotate" aria-hidden="true" /> Refresh activity</button></div> : sentinelLink ? <><p>Paste this one-time code into Sentinel, then choose <strong>Link wallet</strong>. It expires {formatTime(sentinelLink.expiresAt)}.</p><code className="link-code">{sentinelLink.linkCode}</code><div className="link-code-actions"><button className="code-refresh-button" onClick={createSentinelLink}><i className="fa-solid fa-rotate" aria-hidden="true" /> Generate a new code</button><small>Only use this after recreating a Sentinel identity. It replaces the unused code above.</small></div></> : <><p>After the extension is ready, create a one-time link code to bind this wallet to its device proof.</p><button className="secondary-button" onClick={createSentinelLink}>I installed Sentinel — create link code</button></>}
         </section>
         <div className="steps-grid"><article className="step-card"><span>01</span><h2>Download Sentinel</h2><p><a href="/downloads/atlas-sentinel-mvp.zip" download>Download the package</a>, unpack it, then use Chrome’s developer extensions page to load it.</p></article><article className="step-card"><span>02</span><h2>Link this wallet</h2><p>Paste the one-time code above into Sentinel and select Link wallet. If Sentinel asks for a new device identity, return here and select Generate a fresh code.</p></article><article className="step-card"><span>03</span><h2>Inspect your receipt</h2><p>Run a live check. Only records tied to this wallet will appear below.</p></article></div>
         {clientEvidence.length ? <section className="panel"><div className="panel-heading"><div><p className="eyebrow">YOUR CONTRIBUTIONS</p><h2>Accepted Sentinel records</h2></div><button className="icon-button" onClick={() => refreshPersonal()} aria-label="Refresh Sentinel activity"><i className="fa-solid fa-rotate" aria-hidden="true" /></button></div><div className="activity-list">{clientEvidence.map((record) => <div className="activity-item" key={record.id}><span className="activity-icon"><i className="fa-solid fa-satellite-dish" aria-hidden="true" /></span><div><strong>{shortHash(record.payload?.sentinelId, 9)}</strong><p>{formatTime(record.payload?.observedAt)} · {record.payload?.probe?.latencyMs ?? "—"} ms</p></div><code>{shortHash(record.id, 8)}</code></div>)}</div></section> : <EmptyState icon="fa-satellite" title="No linked Sentinel evidence yet">Link Sentinel with a one-time code, run a check, then use Refresh activity above.</EmptyState>}

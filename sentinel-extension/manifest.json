@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Portaldot Atlas Sentinel",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Runs user-authorized, signed Portaldot reliability checks. It never shares bandwidth or browsing data.",
   "minimum_chrome_version": "120",
   "permissions": ["alarms", "storage"],
@@ -15,6 +15,17 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://portaldot-atlas.vercel.app/*",
+        "https://portaldot-atlas-git-main-jhontejada95s-projects.vercel.app/*",
+        "http://127.0.0.1:5174/*"
+      ],
+      "js": ["sentinel-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_title": "Portaldot Atlas Sentinel",
     "default_popup": "popup.html",
