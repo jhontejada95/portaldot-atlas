@@ -186,7 +186,13 @@ app.get("/v1/me/evidence", async (request, response, next) => {
 app.post("/v1/sentinels/register", async (request, response, next) => {
   try {
     const { sentinelId, publicKeyJwk } = request.body ?? {};
-    if (!/^[a-zA-Z0-9_-]{16,128}$/.test(sentinelId ?? "") || !publicKeyJwk?.kty) {
+    if (
+      !/^[a-zA-Z0-9_-]{16,128}$/.test(sentinelId ?? "")
+      || publicKeyJwk?.kty !== "EC"
+      || publicKeyJwk?.crv !== "P-256"
+      || typeof publicKeyJwk?.x !== "string"
+      || typeof publicKeyJwk?.y !== "string"
+    ) {
       return response.status(400).json({ error: "invalid_sentinel_registration" });
     }
     const sentinel = await registerSentinel(sentinelId, publicKeyJwk);

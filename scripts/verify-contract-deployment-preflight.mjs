@@ -11,7 +11,16 @@ const network = process.env.ATLAS_CONTRACT_DEPLOYMENT_NETWORK;
 const endpoint = process.env.ATLAS_CONTRACT_ENDPOINT;
 const expectedGenesis = process.env.ATLAS_CONTRACT_EXPECTED_GENESIS;
 const explorer = process.env.ATLAS_CONTRACT_EXPLORER_URL;
-const artifactPath = path.resolve("contracts/atlas-epoch-credits/target/ink/atlas_epoch_credits.contract");
+const artifacts = [
+  {
+    name: "atlas-epoch-credits",
+    path: path.resolve("contracts/atlas-epoch-credits/target/ink/atlas_epoch_credits.contract"),
+  },
+  {
+    name: "atlas-sentinel-registry",
+    path: path.resolve("contracts/atlas-sentinel-registry/target/ink/atlas_sentinel_registry.contract"),
+  },
+];
 
 if (network !== "testnet") {
   throw new Error("ATLAS_CONTRACT_DEPLOYMENT_NETWORK must be exactly 'testnet'; Mainnet deployment is intentionally refused.");
@@ -26,11 +35,18 @@ if (!/^https:\/\//.test(explorer ?? "")) {
   throw new Error("ATLAS_CONTRACT_EXPLORER_URL must be a public HTTPS explorer URL.");
 }
 
-await access(artifactPath);
-const artifact = JSON.parse(await readFile(artifactPath, "utf8"));
-if (artifact?.contract?.name !== "atlas-epoch-credits" || !artifact?.source?.hash) {
-  throw new Error("atlas-epoch-credits artifact is missing its canonical contract metadata.");
-}
+const contractArtifacts = await Promise.all(artifacts.map(async (expected) => {
+  await access(expected.path);
+  const artifact = JSON.parse(await readFile(expected.path, "utf8"));
+  if (artifact?.contract?.name !== expected.name || !artifact?.source?.hash) {
+    throw new Error(`${expected.name} artifact is missing its canonical contract metadata.`);
+  }
+  return {
+    name: artifact.contract.name,
+    sourceHash: artifact.source.hash,
+    language: artifact.source.language,
+  };
+}));
 
 const [probe, capabilities] = await Promise.all([
   samplePortaldot(endpoint, { expectedGenesis }),
@@ -49,11 +65,7 @@ console.log(JSON.stringify({
   chain: probe.chain,
   genesisHash: probe.genesisHash,
   runtime: probe.runtime,
-  artifact: {
-    name: artifact.contract.name,
-    sourceHash: artifact.source.hash,
-    language: artifact.source.language,
-  },
+  artifacts: contractArtifacts,
   capabilities,
   safety: "Preflight only. No account, signer, Wasm upload, instantiation, or transaction was used.",
 }, null, 2));

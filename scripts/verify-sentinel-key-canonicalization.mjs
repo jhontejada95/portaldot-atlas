@@ -16,4 +16,9 @@ assert.notEqual(
   sentinelKeyCommitment({ ...postgresOrder, y: "different-y" }),
   "different P-256 material must have a different commitment",
 );
+assert.throws(
+  () => sentinelKeyCommitment({ kty: "EC", crv: "P-384", x: "example-x", y: "example-y" }),
+  /invalid_sentinel_public_key/,
+  "unsupported key material must never yield a commitment",
+);
 console.log("Sentinel JWK canonicalization and key commitment passed.");

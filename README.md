@@ -217,9 +217,10 @@ variables and run:
 npm run verify:contract-deployment-preflight
 ```
 
-The preflight refuses any value other than `testnet` and rejects Mainnet's
-genesis hash. Passing it is still not deployment: a human must explicitly
-authorize the later signing and testnet transaction.
+The preflight refuses any value other than `testnet`, rejects Mainnet's
+genesis hash, and requires metadata for both the Credits and Sentinel Registry
+bundles. Passing it is still not deployment: a human must explicitly authorize
+the later signing and testnet transaction.
 
 ## Deterministic epoch plans
 
