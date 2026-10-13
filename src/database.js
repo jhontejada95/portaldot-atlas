@@ -95,6 +95,13 @@ async function initializeSchema(client) {
     CREATE INDEX IF NOT EXISTS atlas_agent_incidents_status_idx
       ON atlas_agent_incidents (status, expires_at);
   `);
+  await client.query(`
+    ALTER TABLE atlas_agent_incidents
+      DROP CONSTRAINT IF EXISTS atlas_agent_incidents_status_check;
+    ALTER TABLE atlas_agent_incidents
+      ADD CONSTRAINT atlas_agent_incidents_status_check
+      CHECK (status IN ('reserved', 'payment_pending', 'verified', 'rejected', 'expired'));
+  `);
 }
 
 export async function pruneExpiredRows() {

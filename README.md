@@ -138,13 +138,16 @@ telemetry.
 Settlement is not claimed until a separate payer wallet makes an actual,
 authorized x402 request and the resulting transaction is recorded publicly.
 
-`npm run probe:paid` is deliberately blocked by default. It first re-reads the
-unpaid `402` offer and refuses to pay unless its network, exact amount and
-reviewed receiver match the hard gates. It additionally requires the one-time
-confirmation value `ATLAS_PAID_PROBE_CONFIRMATION=approve-atlas-x402-once`.
-Supplying a private key alone is never enough. Do not set that confirmation or
-run the command without explicit human authorization for a real testnet
-payment.
+`npm run probe:paid` is deliberately blocked by default. It first atomically
+claims a still-reserved, deterministic `ATLAS_AGENT_INCIDENT_ID` in durable
+storage, re-reads the unpaid `402` offer, and refuses to pay unless network,
+exact amount and reviewed receiver match the hard gates. It additionally
+requires the one-time confirmation value
+`ATLAS_PAID_PROBE_CONFIRMATION=approve-atlas-x402-once`. Supplying a private
+key alone is never enough. A transport failure after initiating payment leaves
+the incident `payment_pending` for manual reconciliation and blocks an
+automatic retry. Do not set those values or run the command without explicit
+human authorization for a real testnet payment.
 
 ## Agent boundary
 

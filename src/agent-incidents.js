@@ -46,6 +46,26 @@ export async function reserveAgentIncident(decision) {
   return { reserved: true, incident };
 }
 
+/**
+ * Atomically gives one authorized worker the only payment attempt for an
+ * incident. A network failure after this transition stays pending rather than
+ * inviting a second worker to pay again.
+ */
+export async function claimAgentIncidentForPayment(incidentId) {
+  if (!/^atlas-[a-f0-9]{64}$/.test(incidentId ?? "")) throw new Error("invalid_agent_incident_id");
+  const database = await getDatabase();
+  if (!database) throw new Error("durable_database_required_for_paid_probe");
+  const result = await database.query(
+    `UPDATE atlas_agent_incidents
+     SET status = 'payment_pending'
+     WHERE incident_id = $1 AND status = 'reserved' AND expires_at > NOW()
+     RETURNING incident_id, policy_hash, action, decision, created_at, expires_at`,
+    [incidentId],
+  );
+  if (result.rowCount !== 1) throw new Error("agent_incident_not_available_for_payment");
+  return result.rows[0];
+}
+
 export async function recordAgentIncidentOutcome(incidentId, status, outcome) {
   if (!/^atlas-[a-f0-9]{64}$/.test(incidentId ?? "")) throw new Error("invalid_agent_incident_id");
   if (!["verified", "rejected", "expired"].includes(status)) throw new Error("invalid_agent_incident_status");
@@ -53,7 +73,7 @@ export async function recordAgentIncidentOutcome(incidentId, status, outcome) {
   if (!database) throw new Error("durable_database_required_to_record_payment_outcome");
   const result = await database.query(
     `UPDATE atlas_agent_incidents SET status = $2, outcome = $3::jsonb, resolved_at = NOW()
-     WHERE incident_id = $1 AND status = 'reserved' RETURNING incident_id, status, resolved_at`,
+     WHERE incident_id = $1 AND status = 'payment_pending' RETURNING incident_id, status, resolved_at`,
     [incidentId, status, JSON.stringify(outcome ?? {})],
   );
   if (result.rowCount !== 1) throw new Error("agent_incident_not_reservable");
