@@ -128,7 +128,7 @@ app.get("/v1/agent/status", async (_request, response, next) => {
 
 app.post("/v1/auth/challenge", async (request, response) => {
   try {
-    const origin = request.get("origin") ?? "atlas-local";
+    const origin = request.get("origin");
     response.status(201).json(await createWalletChallenge(request.body?.address, origin));
   } catch (error) {
     response.status(400).json({ error: error.message });

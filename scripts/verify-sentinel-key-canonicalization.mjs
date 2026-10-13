@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { sameSentinelPublicKey, sentinelKeyCommitment } from "../src/sentinel-registry.js";
+import { assertWalletAuthOrigin } from "../src/wallet-auth.js";
 
 const originalOrder = { kty: "EC", crv: "P-256", x: "example-x", y: "example-y", ext: true, key_ops: ["verify"] };
 const postgresOrder = { crv: "P-256", ext: true, key_ops: ["verify"], kty: "EC", x: "example-x", y: "example-y" };
@@ -21,4 +22,7 @@ assert.throws(
   /invalid_sentinel_public_key/,
   "unsupported key material must never yield a commitment",
 );
-console.log("Sentinel JWK canonicalization and key commitment passed.");
+assert.equal(assertWalletAuthOrigin("https://portaldot-atlas.vercel.app"), "https://portaldot-atlas.vercel.app");
+assert.equal(assertWalletAuthOrigin("http://127.0.0.1:5174"), "http://127.0.0.1:5174");
+assert.throws(() => assertWalletAuthOrigin("https://unexpected.example"), /wallet_auth_origin_not_allowed/);
+console.log("Sentinel key canonicalization, commitment and wallet-origin guard passed.");

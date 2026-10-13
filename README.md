@@ -49,6 +49,11 @@ secret. Creating the Blueprint prompts for the Neon connection string, the
 Base Sepolia receiver address, and the server signing key. This is deliberate:
 do not put those values in Git, a dashboard build, or the Sentinel package.
 
+Wallet challenges are issued only to the known Atlas dashboard origins (or a
+loopback Vite origin during local development). Add a deliberate extra
+dashboard host through `ATLAS_WALLET_AUTH_ORIGINS`; the API refuses to act as a
+generic wallet-signing oracle for an arbitrary `Origin` header.
+
 After the Render service has a URL, set it as `VITE_ATLAS_API_ORIGIN` in
 Vercel (Production and Preview) before building the dashboard. This is public
 configuration, not a secret: it tells the browser where Atlas's API lives.

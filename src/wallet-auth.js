@@ -14,6 +14,10 @@ const links = new Map();
 const sentinelWallets = new Map();
 const runtimeDirectory = path.resolve(process.env.ATLAS_RUNTIME_DIRECTORY ?? ".runtime");
 const sentinelWalletPath = path.join(runtimeDirectory, "sentinel-wallet-links.json");
+const DEFAULT_WALLET_AUTH_ORIGINS = new Set([
+  "https://portaldot-atlas.vercel.app",
+  "https://portaldot-atlas-git-main-jhontejada95s-projects.vercel.app",
+]);
 
 export async function initializeWalletAuth() {
   if (databaseEnabled()) {
@@ -49,15 +53,39 @@ export function isPlausibleSubstrateAddress(address) {
   return typeof address === "string" && /^[1-9A-HJ-NP-Za-km-z]{47,64}$/.test(address);
 }
 
+/**
+ * A wallet challenge is a login credential, not a generic signing oracle.
+ * Accept only the deployed Atlas workspace, explicitly configured origins, or
+ * a loopback Vite origin for local development.
+ */
+export function assertWalletAuthOrigin(origin) {
+  if (typeof origin !== "string" || !origin) throw new Error("wallet_auth_origin_required");
+  let normalized;
+  try {
+    normalized = new URL(origin).origin;
+  } catch {
+    throw new Error("wallet_auth_origin_invalid");
+  }
+  const configured = (process.env.ATLAS_WALLET_AUTH_ORIGINS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const allowed = new Set([...DEFAULT_WALLET_AUTH_ORIGINS, ...configured]);
+  const isLocalDev = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(normalized);
+  if (!isLocalDev && !allowed.has(normalized)) throw new Error("wallet_auth_origin_not_allowed");
+  return normalized;
+}
+
 export async function createWalletChallenge(address, origin) {
   if (!isPlausibleSubstrateAddress(address)) throw new Error("invalid_wallet_address");
+  const approvedOrigin = assertWalletAuthOrigin(origin);
   const challengeId = randomUUID();
   const issuedAt = new Date().toISOString();
   const expiresAt = expiresIn(CHALLENGE_TTL_MS);
   const message = [
     "Portaldot Atlas wallet sign-in",
     `Wallet: ${address}`,
-    `Origin: ${origin}`,
+    `Origin: ${approvedOrigin}`,
     `Nonce: ${challengeId}`,
     `Issued at: ${issuedAt}`,
     "This signature authenticates Atlas locally. It is not a transaction and does not move funds.",
