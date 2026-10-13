@@ -19,7 +19,7 @@
         <p id="detail">No device action has been taken in this popup.</p>
       </section>
       <section class="controls" aria-label="Sentinel configuration">
-        <label>Atlas backend <input id="backendUrl" type="url" inputmode="url" /></label>
+        <details class="advanced-connection"><summary>Advanced connection <span id="backendState">Official endpoint</span></summary><p>Sentinel uses the official Atlas endpoint by default. Change it only when you operate a trusted development server.</p><label>Atlas backend <input id="backendUrl" type="url" inputmode="url" /></label></details>
         <label>Check interval <select id="intervalMinutes"><option value="15">Every 15 minutes</option><option value="30">Every 30 minutes</option><option value="60">Every hour</option></select></label>
         <label>Atlas link code <input id="linkCode" type="text" autocomplete="off" placeholder="atlas-…" /></label>
         <label class="toggle"><input id="enabled" type="checkbox" /><span aria-hidden="true"></span><b>Enable scheduled live checks</b></label>

@@ -53,6 +53,7 @@ function resultMessage(result, fallback) {
 async function render() {
   const status = await send({ type: "atlas.status" });
   $("#backendUrl").value = status.backendUrl ?? defaults.backendUrl;
+  $("#backendState").textContent = (status.backendUrl ?? defaults.backendUrl) === defaults.backendUrl ? "Official endpoint" : "Custom endpoint";
   $("#intervalMinutes").value = String(status.intervalMinutes ?? defaults.intervalMinutes);
   $("#enabled").checked = Boolean(status.enabled);
   $("#linkCode").value = status.linkCode ?? "";

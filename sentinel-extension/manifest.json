@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Portaldot Atlas Sentinel",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Runs user-authorized, signed Portaldot reliability checks. It never shares bandwidth or browsing data.",
   "minimum_chrome_version": "120",
   "permissions": ["alarms", "storage"],
