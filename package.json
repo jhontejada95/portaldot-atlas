@@ -24,6 +24,7 @@
     "verify:sentinel-registry-contract": "cargo test --manifest-path contracts/atlas-sentinel-registry/Cargo.toml",
     "verify:contract-capabilities": "node scripts/verify-portaldot-contract-capabilities.mjs",
     "verify:contract-deployment-preflight": "node scripts/verify-contract-deployment-preflight.mjs",
+    "verify:local-contract-runtime": "node scripts/verify-local-contract-runtime.mjs",
     "verify:hosted-postgres": "node scripts/verify-hosted-postgres.mjs",
     "verify:x402-challenge": "node scripts/verify-x402-challenge.mjs",
     "verify:live": "node scripts/verify-live-probe.mjs"

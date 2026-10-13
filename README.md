@@ -227,6 +227,20 @@ genesis hash, and requires metadata for both the Credits and Sentinel Registry
 bundles. Passing it is still not deployment: a human must explicitly authorize
 the later signing and testnet transaction.
 
+### Local Portaldot contract readiness
+
+Portaldot's official Windows guidance uses a manually started development node
+inside WSL. Once the user has obtained and started that node, verify only its
+live chain identity, contract APIs and Atlas bundles with:
+
+```powershell
+npm run verify:local-contract-runtime
+```
+
+It defaults to `ws://127.0.0.1:9944` and does not need an account, test POT,
+upload, instantiation or transaction. It is a readiness gate, not a deployment
+command.
+
 ## Deterministic epoch plans
 
 `src/epoch-builder.js` produces an epoch plan only from accepted Sentinel
