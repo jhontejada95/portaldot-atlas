@@ -406,7 +406,6 @@ export function App() {
   const acceptFarmDemoProof = () => {
     setFarmDemo((current) => current.social === "submitted" ? { ...current, social: "accepted", score: current.score + 20 } : current);
   };
-  const resetFarmDemo = () => setFarmDemo({ social: "available", score: 240, cache: null });
 
   const renderOverview = () => <>
     <section className="intro-row">
@@ -472,7 +471,6 @@ export function App() {
   };
 
   const renderFarm = () => <section className="page-section farm-page">
-    <div className="farm-demo-banner"><span><i className="fa-solid fa-flask" aria-hidden="true" /> LOCAL DEMO</span><strong>No wallet, V3 endpoint or external API is used here.</strong><button className="text-button" onClick={resetFarmDemo}>Reset demo</button></div>
     {renderFieldLens()}
     {renderFarmCarousel()}
      <div className="intro-row compact"><div><p className="eyebrow">SEASON ZERO · FARM HUB</p><h1>Earn proof. Spend Gems.</h1><p className="lede">A visual preview of the quest loop: community actions build Score, verified contributions unlock Gems, and Gems burn into a local Reward Cache item.</p></div><button className="primary-button" onClick={previewRewardFlow}><i className="fa-solid fa-bolt" aria-hidden="true" /> {farmDemo.cache ? "Close reward preview" : "Preview reward flow"}</button></div>
