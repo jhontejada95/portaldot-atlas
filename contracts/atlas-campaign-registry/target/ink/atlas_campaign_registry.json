@@ -1,0 +1,1110 @@
+{
+  "source": {
+    "hash": "0xbc7dd8f15adc8232bed5f9f428f25aa8cddf561194ba4780e0044944fffd170a",
+    "language": "ink! 5.1.1",
+    "compiler": "rustc 1.88.0",
+    "build_info": {
+      "build_mode": "Release",
+      "cargo_contract_version": "5.0.1",
+      "rust_toolchain": "stable-x86_64-pc-windows-msvc",
+      "wasm_opt_settings": {
+        "keep_debug_symbols": false,
+        "optimization_passes": "Z"
+      }
+    }
+  },
+  "contract": {
+    "name": "atlas-campaign-registry",
+    "version": "0.1.0",
+    "authors": [
+      "Portaldot Atlas contributors"
+    ]
+  },
+  "image": null,
+  "spec": {
+    "constructors": [
+      {
+        "args": [],
+        "default": false,
+        "docs": [],
+        "label": "new",
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink_primitives",
+            "ConstructorResult"
+          ],
+          "type": 14
+        },
+        "selector": "0x9bae9d5e"
+      }
+    ],
+    "docs": [
+      " Registry for protocol-owned campaign commitments and lifecycle state."
+    ],
+    "environment": {
+      "accountId": {
+        "displayName": [
+          "AccountId"
+        ],
+        "type": 0
+      },
+      "balance": {
+        "displayName": [
+          "Balance"
+        ],
+        "type": 4
+      },
+      "blockNumber": {
+        "displayName": [
+          "BlockNumber"
+        ],
+        "type": 23
+      },
+      "chainExtension": {
+        "displayName": [
+          "ChainExtension"
+        ],
+        "type": 24
+      },
+      "hash": {
+        "displayName": [
+          "Hash"
+        ],
+        "type": 3
+      },
+      "maxEventTopics": 4,
+      "staticBufferSize": 16384,
+      "timestamp": {
+        "displayName": [
+          "Timestamp"
+        ],
+        "type": 5
+      }
+    },
+    "events": [
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          },
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "protocol",
+            "type": {
+              "displayName": [
+                "AccountId"
+              ],
+              "type": 0
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "rules_hash",
+            "type": {
+              "displayName": [
+                "Hash"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "docs": [],
+        "label": "CampaignCreated",
+        "module_path": "atlas_campaign_registry::atlas_campaign_registry",
+        "signature_topic": "0x5d2c020a0bd401dcdc9b4f6b44a57437ed9d4ad3c812e313da920109f4b344b2"
+      },
+      {
+        "args": [
+          {
+            "docs": [],
+            "indexed": true,
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          },
+          {
+            "docs": [],
+            "indexed": false,
+            "label": "state",
+            "type": {
+              "displayName": [
+                "CampaignState"
+              ],
+              "type": 8
+            }
+          }
+        ],
+        "docs": [],
+        "label": "CampaignStateChanged",
+        "module_path": "atlas_campaign_registry::atlas_campaign_registry",
+        "signature_topic": "0x66309575be5237c7c884a6d4319d15060ae6b807f75e6714cf5fa190e5b33ca3"
+      }
+    ],
+    "lang_error": {
+      "displayName": [
+        "ink",
+        "LangError"
+      ],
+      "type": 15
+    },
+    "messages": [
+      {
+        "args": [
+          {
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          },
+          {
+            "label": "rules_hash",
+            "type": {
+              "displayName": [
+                "Hash"
+              ],
+              "type": 3
+            }
+          },
+          {
+            "label": "budget",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 4
+            }
+          },
+          {
+            "label": "max_per_wallet",
+            "type": {
+              "displayName": [
+                "u128"
+              ],
+              "type": 4
+            }
+          },
+          {
+            "label": "cooldown",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 5
+            }
+          },
+          {
+            "label": "starts_at",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 5
+            }
+          },
+          {
+            "label": "ends_at",
+            "type": {
+              "displayName": [
+                "u64"
+              ],
+              "type": 5
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "create",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 16
+        },
+        "selector": "0xab700a1b"
+      },
+      {
+        "args": [
+          {
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "publish",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 16
+        },
+        "selector": "0x5fc759c5"
+      },
+      {
+        "args": [
+          {
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "pause",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 16
+        },
+        "selector": "0x81e0c604"
+      },
+      {
+        "args": [
+          {
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "close",
+        "mutates": true,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 16
+        },
+        "selector": "0x3c922166"
+      },
+      {
+        "args": [
+          {
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "campaign",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 19
+        },
+        "selector": "0x32ebbc04"
+      },
+      {
+        "args": [
+          {
+            "label": "campaign_id",
+            "type": {
+              "displayName": [
+                "CampaignId"
+              ],
+              "type": 3
+            }
+          }
+        ],
+        "default": false,
+        "docs": [],
+        "label": "exists",
+        "mutates": false,
+        "payable": false,
+        "returnType": {
+          "displayName": [
+            "ink",
+            "MessageResult"
+          ],
+          "type": 21
+        },
+        "selector": "0xca94231f"
+      }
+    ]
+  },
+  "storage": {
+    "root": {
+      "layout": {
+        "struct": {
+          "fields": [
+            {
+              "layout": {
+                "root": {
+                  "layout": {
+                    "struct": {
+                      "fields": [
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0xc5c0f45f",
+                              "ty": 0
+                            }
+                          },
+                          "name": "protocol"
+                        },
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0xc5c0f45f",
+                              "ty": 3
+                            }
+                          },
+                          "name": "rules_hash"
+                        },
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0xc5c0f45f",
+                              "ty": 4
+                            }
+                          },
+                          "name": "budget"
+                        },
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0xc5c0f45f",
+                              "ty": 4
+                            }
+                          },
+                          "name": "max_per_wallet"
+                        },
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0xc5c0f45f",
+                              "ty": 5
+                            }
+                          },
+                          "name": "cooldown"
+                        },
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0xc5c0f45f",
+                              "ty": 5
+                            }
+                          },
+                          "name": "starts_at"
+                        },
+                        {
+                          "layout": {
+                            "leaf": {
+                              "key": "0xc5c0f45f",
+                              "ty": 5
+                            }
+                          },
+                          "name": "ends_at"
+                        },
+                        {
+                          "layout": {
+                            "enum": {
+                              "dispatchKey": "0xc5c0f45f",
+                              "name": "CampaignState",
+                              "variants": {
+                                "0": {
+                                  "fields": [],
+                                  "name": "Draft"
+                                },
+                                "1": {
+                                  "fields": [],
+                                  "name": "Published"
+                                },
+                                "2": {
+                                  "fields": [],
+                                  "name": "Paused"
+                                },
+                                "3": {
+                                  "fields": [],
+                                  "name": "Closed"
+                                }
+                              }
+                            }
+                          },
+                          "name": "state"
+                        }
+                      ],
+                      "name": "Campaign"
+                    }
+                  },
+                  "root_key": "0xc5c0f45f",
+                  "ty": 6
+                }
+              },
+              "name": "campaigns"
+            }
+          ],
+          "name": "AtlasCampaignRegistry"
+        }
+      },
+      "root_key": "0x00000000",
+      "ty": 13
+    }
+  },
+  "types": [
+    {
+      "id": 0,
+      "type": {
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "type": 1,
+                "typeName": "[u8; 32]"
+              }
+            ]
+          }
+        },
+        "path": [
+          "ink_primitives",
+          "types",
+          "AccountId"
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "type": {
+        "def": {
+          "array": {
+            "len": 32,
+            "type": 2
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": {
+        "def": {
+          "primitive": "u8"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": {
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "type": 1,
+                "typeName": "[u8; 32]"
+              }
+            ]
+          }
+        },
+        "path": [
+          "ink_primitives",
+          "types",
+          "Hash"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "type": {
+        "def": {
+          "primitive": "u128"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": {
+        "def": {
+          "primitive": "u64"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "K",
+            "type": 3
+          },
+          {
+            "name": "V",
+            "type": 7
+          },
+          {
+            "name": "KeyType",
+            "type": 9
+          }
+        ],
+        "path": [
+          "ink_storage",
+          "lazy",
+          "mapping",
+          "Mapping"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "type": {
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "name": "protocol",
+                "type": 0,
+                "typeName": "AccountId"
+              },
+              {
+                "name": "rules_hash",
+                "type": 3,
+                "typeName": "Hash"
+              },
+              {
+                "name": "budget",
+                "type": 4,
+                "typeName": "u128"
+              },
+              {
+                "name": "max_per_wallet",
+                "type": 4,
+                "typeName": "u128"
+              },
+              {
+                "name": "cooldown",
+                "type": 5,
+                "typeName": "u64"
+              },
+              {
+                "name": "starts_at",
+                "type": 5,
+                "typeName": "u64"
+              },
+              {
+                "name": "ends_at",
+                "type": 5,
+                "typeName": "u64"
+              },
+              {
+                "name": "state",
+                "type": 8,
+                "typeName": "CampaignState"
+              }
+            ]
+          }
+        },
+        "path": [
+          "atlas_campaign_registry",
+          "atlas_campaign_registry",
+          "Campaign"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "index": 0,
+                "name": "Draft"
+              },
+              {
+                "index": 1,
+                "name": "Published"
+              },
+              {
+                "index": 2,
+                "name": "Paused"
+              },
+              {
+                "index": 3,
+                "name": "Closed"
+              }
+            ]
+          }
+        },
+        "path": [
+          "atlas_campaign_registry",
+          "atlas_campaign_registry",
+          "CampaignState"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "L",
+            "type": 10
+          },
+          {
+            "name": "R",
+            "type": 11
+          }
+        ],
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ResolverKey"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "AutoKey"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "type": {
+        "def": {
+          "composite": {}
+        },
+        "params": [
+          {
+            "name": "ParentKey",
+            "type": 12
+          }
+        ],
+        "path": [
+          "ink_storage_traits",
+          "impls",
+          "ManualKey"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "type": {
+        "def": {
+          "tuple": []
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": {
+        "def": {
+          "composite": {
+            "fields": [
+              {
+                "name": "campaigns",
+                "type": 6,
+                "typeName": "<Mapping<CampaignId, Campaign> as::ink::storage::traits::\nAutoStorableHint<::ink::storage::traits::ManualKey<1609875653u32,\n()>,>>::Type"
+              }
+            ]
+          }
+        },
+        "path": [
+          "atlas_campaign_registry",
+          "atlas_campaign_registry",
+          "AtlasCampaignRegistry"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 12
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 15
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 12
+          },
+          {
+            "name": "E",
+            "type": 15
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "index": 1,
+                "name": "CouldNotReadInput"
+              }
+            ]
+          }
+        },
+        "path": [
+          "ink_primitives",
+          "LangError"
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 17
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 15
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 17
+          },
+          {
+            "name": "E",
+            "type": 15
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 12
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 18
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 12
+          },
+          {
+            "name": "E",
+            "type": 18
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "index": 0,
+                "name": "EmptyId"
+              },
+              {
+                "index": 1,
+                "name": "EmptyRules"
+              },
+              {
+                "index": 2,
+                "name": "AlreadyExists"
+              },
+              {
+                "index": 3,
+                "name": "UnknownCampaign"
+              },
+              {
+                "index": 4,
+                "name": "NotProtocolOwner"
+              },
+              {
+                "index": 5,
+                "name": "InvalidTransition"
+              },
+              {
+                "index": 6,
+                "name": "InvalidWindow"
+              }
+            ]
+          }
+        },
+        "path": [
+          "atlas_campaign_registry",
+          "atlas_campaign_registry",
+          "Error"
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 20
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 15
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 20
+          },
+          {
+            "name": "E",
+            "type": 15
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "index": 0,
+                "name": "None"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 7
+                  }
+                ],
+                "index": 1,
+                "name": "Some"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 7
+          }
+        ],
+        "path": [
+          "Option"
+        ]
+      }
+    },
+    {
+      "id": 21,
+      "type": {
+        "def": {
+          "variant": {
+            "variants": [
+              {
+                "fields": [
+                  {
+                    "type": 22
+                  }
+                ],
+                "index": 0,
+                "name": "Ok"
+              },
+              {
+                "fields": [
+                  {
+                    "type": 15
+                  }
+                ],
+                "index": 1,
+                "name": "Err"
+              }
+            ]
+          }
+        },
+        "params": [
+          {
+            "name": "T",
+            "type": 22
+          },
+          {
+            "name": "E",
+            "type": 15
+          }
+        ],
+        "path": [
+          "Result"
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "type": {
+        "def": {
+          "primitive": "bool"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": {
+        "def": {
+          "primitive": "u32"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "type": {
+        "def": {
+          "variant": {}
+        },
+        "path": [
+          "ink_env",
+          "types",
+          "NoChainExtension"
+        ]
+      }
+    }
+  ],
+  "version": 5
+}

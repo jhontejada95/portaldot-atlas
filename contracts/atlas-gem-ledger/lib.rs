@@ -96,7 +96,7 @@ mod atlas_gem_ledger {
             let wallet = self.env().caller();
             let balance = self.balances.get((season, wallet)).unwrap_or(0);
             if balance < amount { return Err(Error::InsufficientBalance); }
-            let remaining = balance - amount;
+            let remaining = balance.checked_sub(amount).ok_or(Error::InsufficientBalance)?;
             policy.spent = policy.spent.checked_add(amount).ok_or(Error::BudgetExceeded)?;
             self.seasons.insert(season, &policy);
             self.balances.insert((season, wallet), &remaining);
