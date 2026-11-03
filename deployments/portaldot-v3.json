@@ -1,0 +1,26 @@
+{
+  "network": "Portaldot V3 Test",
+  "chainId": 420420777,
+  "rpc": "https://test-evm-rpc-v3.portaldot.dev",
+  "deployer": "0x91ee4Cf394123153eB19ED7053A9FE9C4b7099A2",
+  "contracts": {
+    "evidenceAnchor": {
+      "address": "0x0412b489acbf7c2c331bfd6a306617c7a7f1c92a",
+      "transaction": "0xdd3c036ce773280c9b3cd9e70d5d8fc328379480d179fe9e9669c877becdeb4d",
+      "block": 301575,
+      "runtimeBytes": 339
+    },
+    "campaignRegistry": {
+      "address": "0x36faf8b0273a6f66ce318d488c2b8a31ce506d8f",
+      "transaction": "0xa3e55cf53bc873f946100837c0990a0ad68d0ae77ccc3ad2ae79cbda7a1c501b",
+      "block": 301767,
+      "runtimeBytes": 359
+    },
+    "gemLedger": {
+      "address": "0x36a0b1d7f809fc2ad7adcabd154115e1c9ab05c2",
+      "transaction": "0x7af8d6b5adc0ac8dd57ce576c15a0b3020b9b46f2519700a680fb2b83cf4a3c6",
+      "block": 301771,
+      "runtimeBytes": 387
+    }
+  }
+}

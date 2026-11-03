@@ -6,10 +6,11 @@ post-pivot campaign/economy contracts: `atlas-evidence-anchor`,
 `atlas-campaign-registry`, `atlas-gem-ledger`, `atlas-module-station`,
 `atlas-booster-module` and `atlas-campaign-treasury`.
 
-All of these are source code and locally tested ink! bundles. **None of the
-contracts in this directory is currently deployed or instantiated on Portal
-V3.** A deployed contract would require a public address, a deployment
-transaction hash and a block/explorer record. We have none of those for Atlas.
+The original ink! crates remain source/reference implementations. The compact
+EVM/revive variants are now deployed on Portaldot V3 Test. The canonical
+deployment manifest is `deployments/portaldot-v3.json`; it records the public
+addresses, transaction hashes and blocks for EvidenceAnchor, CampaignRegistry
+and GemLedger.
 
 `atlas-epoch-credits` is the first executable on-chain component of Atlas.
 It stores immutable epoch roots and awards non-transferable contribution
