@@ -6,7 +6,8 @@ const WSS_URL = "wss://test-node-v3.portaldot.dev";
 const DESTINATION = "5FN3bCiDjDvTvF29nGS5ct8RA55nFKLTcqJgRau3mSC3bMb4";
 const SOURCE = "5CckzYq2DCUNRXdekaorov8JH9yrzPSWxA7fHszN2orNcTU4";
 const DECIMALS = 14;
-const AMOUNT = 5n * 10n ** BigInt(DECIMALS);
+const AMOUNT_POT = 50n;
+const AMOUNT = AMOUNT_POT * 10n ** BigInt(DECIMALS);
 
 function formatPot(value) {
   if (value == null) return "—";
@@ -52,7 +53,7 @@ export function NativeFund() {
     if (!api || !account || status !== "ready") return;
     try {
       setStatus("awaiting-signature");
-      setMessage("SubWallet abrirá la confirmación. Comprueba red, cuenta, destinatario y 5 POT antes de aprobar.");
+      setMessage(`SubWallet abrirá la confirmación. Comprueba red, cuenta, destinatario y ${AMOUNT_POT} POT antes de aprobar.`);
       const injector = await web3FromAddress(account);
       const tx = api.tx.balances.transferKeepAlive(DESTINATION, AMOUNT.toString());
       await tx.signAndSend(account, { signer: injector.signer }, ({ status: nextStatus, dispatchError, txHash: nextHash }) => {
@@ -86,11 +87,11 @@ export function NativeFund() {
           <div><span>Desde</span><code>{account || expectedSource}</code></div>
           <div><span>Saldo leído</span><strong>{formatPot(balance)}</strong></div>
           <div><span>Hacia</span><code>{DESTINATION}</code></div>
-          <div><span>Transferencia preparada</span><strong>5 POT</strong></div>
+          <div><span>Transferencia preparada</span><strong>{AMOUNT_POT} POT</strong></div>
         </div>
         <div className="evm-actions">
           <button className="evm-primary" onClick={connect}>{account ? "Volver a comprobar SubWallet" : "Conectar SubWallet nativa"}</button>
-          <button className="evm-danger" onClick={transfer} disabled={status !== "ready"}>Abrir confirmación de 5 POT</button>
+          <button className="evm-danger" onClick={transfer} disabled={status !== "ready"}>Abrir confirmación de {AMOUNT_POT} POT</button>
         </div>
         <div className={`evm-status evm-status-${status}`} role="status">
           <b>{status === "ready" ? "Lista" : status === "confirmed" ? "Confirmada" : "Estado"}</b>
