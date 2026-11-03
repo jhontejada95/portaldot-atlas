@@ -73,7 +73,12 @@ export function EvmDeploy() {
       setBalance(currentBalance);
       if (currentChain !== CHAIN_ID) {
         setStatus("wrong-chain");
-        setMessage(`La wallet está en Chain ID ${currentChain}. Cambia a Portaldot V3 (${CHAIN_ID}) desde la wallet.`);
+        if (label === "SubWallet") {
+          setShowAlternate(true);
+          setMessage(`SubWallet conectó la cuenta y leyó ${formatEther(currentBalance)} POT, pero no puede cambiar a Portaldot V3. Usa una wallet EVM compatible para esta cuenta.`);
+        } else {
+          setMessage(`La wallet está en Chain ID ${currentChain}. Cambia a Portaldot V3 (${CHAIN_ID}) desde la wallet.`);
+        }
       } else if (connected.toLowerCase() !== CONTROLLED_EVM.toLowerCase()) {
         setStatus("wrong-address");
         setMessage(`La cuenta conectada no coincide con tu cuenta EVM controlada. Esperaba ${short(CONTROLLED_EVM)}.`);
@@ -201,7 +206,7 @@ export function EvmDeploy() {
         <div className={`evm-status evm-status-${status}`} role="status">
           <b>{status === "ready" ? "Lista" : status === "prepared" ? "Preparada" : status === "confirmed" ? "Confirmada" : "Estado"}</b>
           <p>{message || "Conecta la wallet para empezar."}</p>
-          {address && <small>Cuenta: {address} · Chain ID detectado: {chainId ?? "—"}</small>}
+          {address && <small>Proveedor: {providerLabel || "—"} · Cuenta: {address} · Chain ID detectado: {chainId ?? "—"}</small>}
           {deployment && <small>Tx: {deployment}</small>}
         </div>
         <a className="evm-back" href="/">Volver a Atlas</a>
