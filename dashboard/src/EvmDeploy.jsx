@@ -43,29 +43,31 @@ async function findSubWalletProvider() {
 
 export function EvmDeploy() {
   const [provider, setProvider] = useState(null);
+  const [providerLabel, setProviderLabel] = useState("");
   const [address, setAddress] = useState("");
   const [balance, setBalance] = useState(null);
   const [chainId, setChainId] = useState(null);
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
   const [deployment, setDeployment] = useState("");
+  const [showAlternate, setShowAlternate] = useState(false);
   const publicClient = useMemo(() => createPublicClient({ chain: CHAIN, transport: http(RPC_URL) }), []);
 
-  async function connect() {
-    const injected = await findSubWalletProvider();
+  async function connectWith(injected, label) {
     if (!injected) {
       setStatus("error");
-      setMessage("No detecté SubWallet en este navegador. Abre la página en el perfil donde está instalada y habilita el acceso del sitio.");
+      setMessage("No detecté una wallet EVM compatible en este navegador.");
       return;
     }
     try {
       setStatus("checking");
-      setMessage("Solicitando conexión a SubWallet…");
+      setMessage(`Solicitando conexión a ${label}…`);
       const wallet = createWalletClient({ chain: CHAIN, transport: custom(injected) });
       const [connected] = await wallet.requestAddresses();
       const currentChain = await wallet.getChainId();
       const currentBalance = await publicClient.getBalance({ address: connected });
       setProvider(wallet);
+      setProviderLabel(label);
       setAddress(connected);
       setChainId(currentChain);
       setBalance(currentBalance);
@@ -88,6 +90,34 @@ export function EvmDeploy() {
     }
   }
 
+  async function connect() {
+    const injected = await findSubWalletProvider();
+    if (!injected) {
+      setStatus("error");
+      setMessage("No detecté SubWallet en este navegador. Puedes conectar una wallet EVM compatible como Rabby para el despliegue.");
+      setShowAlternate(true);
+      return;
+    }
+    await connectWith(injected, "SubWallet");
+  }
+
+  async function connectAlternate() {
+    const injected = await new Promise((resolve) => {
+      const candidates = [];
+      const onAnnouncement = (event) => {
+        const provider = event?.detail?.provider;
+        if (provider && !provider.isSubWallet && !candidates.includes(provider)) candidates.push(provider);
+      };
+      window.addEventListener("eip6963:announceProvider", onAnnouncement);
+      window.dispatchEvent(new Event("eip6963:requestProvider"));
+      window.setTimeout(() => {
+        window.removeEventListener("eip6963:announceProvider", onAnnouncement);
+        resolve(candidates[0] || (window.ethereum && !window.ethereum.isSubWallet ? window.ethereum : null));
+      }, 700);
+    });
+    await connectWith(injected, "wallet EVM compatible");
+  }
+
   async function switchNetwork() {
     if (!provider) return;
     try {
@@ -98,9 +128,15 @@ export function EvmDeploy() {
     } catch (error) {
       if (error?.code === 4902) {
         await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: `0x${CHAIN_ID.toString(16)}`, chainName: CHAIN.name, nativeCurrency: CHAIN.nativeCurrency, rpcUrls: [RPC_URL], blockExplorerUrls: ["https://scanner-testnet-v3.portaldot.dev/"] }] });
-        setMessage("Red añadida a SubWallet. Vuelve a comprobar la wallet para leer el saldo de Portaldot V3.");
+        setMessage(`Red añadida a ${providerLabel || "la wallet"}. Vuelve a comprobar para leer el saldo de Portaldot V3.`);
         setStatus("idle");
       } else {
+        if (/not supported|unsupported|cannot connect/i.test(error?.message || "")) {
+          setShowAlternate(true);
+          setStatus("error");
+          setMessage("SubWallet no admite esta red EVM V3 como red personalizada. Usa una wallet EVM compatible, como Rabby, con la misma cuenta 0x91ee…09A2.");
+          return;
+        }
         setStatus("error");
         setMessage(error?.shortMessage || error?.message || "No se pudo cambiar la red desde la wallet.");
       }
@@ -151,6 +187,7 @@ export function EvmDeploy() {
         </div>
         <div className="evm-actions">
           <button className="evm-primary" onClick={connect}>{address ? "Volver a comprobar wallet" : "Conectar wallet EVM"}</button>
+          {showAlternate && <button className="evm-secondary" onClick={connectAlternate}>Conectar wallet EVM compatible</button>}
           <button className="evm-secondary" onClick={switchNetwork} disabled={!provider || status !== "wrong-chain"}>Cambiar a Portaldot V3</button>
           <button className="evm-secondary" onClick={prepare} disabled={status !== "ready"}>Preparar transacción</button>
           <button className="evm-danger" onClick={deploy} disabled={status !== "prepared"}>Abrir confirmación de firma</button>
