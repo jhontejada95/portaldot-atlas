@@ -77,6 +77,7 @@ export function EvmDeploy() {
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
   const [deployment, setDeployment] = useState("");
+  const [preparedGas, setPreparedGas] = useState(null);
   const [showAlternate, setShowAlternate] = useState(false);
   const publicClient = useMemo(() => createPublicClient({ chain: CHAIN, transport: http(RPC_URL) }), []);
 
@@ -114,6 +115,7 @@ export function EvmDeploy() {
         setMessage(`La cuenta es correcta, pero todavía no tiene POT en V3. Su cuenta nativa mapeada es ${short(CONTROLLED_NATIVE)}.`);
       } else {
         setStatus("ready");
+        setPreparedGas(null);
         setMessage("Wallet correcta y red correcta. El despliegue está listo para preparar, sin firmar todavía.");
       }
     } catch (error) {
@@ -159,6 +161,7 @@ export function EvmDeploy() {
         setMessage(`La cuenta conectada no coincide con tu cuenta EVM controlada. Esperaba ${short(CONTROLLED_EVM)}.`);
       } else {
         setStatus("ready");
+        setPreparedGas(null);
         setMessage("Wallet correcta y red correcta. El despliegue está listo para preparar, sin firmar todavía.");
       }
     } catch (error) {
@@ -203,10 +206,20 @@ export function EvmDeploy() {
     try {
       setStatus("checking");
       setMessage("Simulando el despliegue en Portaldot V3…");
-      const data = encodeDeployData({ abi: evidenceAnchorAbi, bytecode: evidenceAnchorBytecode, args: [address] });
+      const data = encodeDeployData({ abi: evidenceAnchorAbi, bytecode: evidenceAnchorBytecode });
       const gas = await publicClient.estimateGas({ account: address, data });
+      const gasPrice = await publicClient.getGasPrice();
+      const fee = gas * gasPrice;
+      const currentBalance = await publicClient.getBalance({ address });
+      setBalance(currentBalance);
+      setPreparedGas(gas);
+      if (fee > currentBalance) {
+        setStatus("needs-funding");
+        setMessage(`La simulación sí funciona, pero el saldo no alcanza. Coste estimado: ${formatEther(fee)} POT; saldo: ${formatEther(currentBalance)} POT. Solicita fondeo para la cuenta nativa mapeada antes de firmar.`);
+        return;
+      }
       setStatus("prepared");
-      setMessage(`Solicitud preparada con una estimación de ${gas.toString()} gas. No se ha enviado ninguna transacción. Antes de firmar, revisa la wallet y confirma aquí.`);
+      setMessage(`Solicitud preparada: ${gas.toString()} gas, coste estimado ${formatEther(fee)} POT. No se ha enviado ninguna transacción. Antes de firmar, revisa la wallet y confirma aquí.`);
     } catch (error) {
       setStatus("error");
       setMessage(`El RPC V3 rechazó la simulación del despliegue. No se ha firmado ni enviado nada. ${error?.shortMessage || error?.message || "Revisa el contrato y vuelve a intentarlo cuando el nodo acepte la simulación."}`);
@@ -222,7 +235,7 @@ export function EvmDeploy() {
         account: address,
         abi: evidenceAnchorAbi,
         bytecode: evidenceAnchorBytecode,
-        args: [address],
+        gas: preparedGas || undefined,
       });
       setDeployment(hash);
       setStatus("submitted");
@@ -246,14 +259,14 @@ export function EvmDeploy() {
           <div><span>Red</span><strong>Portaldot V3 · {CHAIN_ID}</strong></div>
           <div><span>Cuenta EVM controlada</span><code>{short(CONTROLLED_EVM)}</code></div>
           <div><span>Mapeo nativo para fondeo</span><code>{short(CONTROLLED_NATIVE)}</code></div>
-          <div><span>Contrato</span><strong>EvidenceAnchor · v0.1</strong></div>
+          <div><span>Contrato</span><strong>EvidenceAnchor · V3 compact Yul</strong></div>
           <div><span>Saldo leído</span><strong>{balance == null ? "—" : `${formatEther(balance)} POT`}</strong></div>
         </div>
         <div className="evm-actions">
           <button className="evm-primary" onClick={address ? refreshConnected : connect}>{address ? "Volver a comprobar wallet" : "Conectar wallet EVM"}</button>
           {showAlternate && <button className="evm-secondary" onClick={connectAlternate}>Conectar wallet EVM compatible</button>}
           <button className="evm-secondary" onClick={switchNetwork} disabled={!provider || status !== "wrong-chain"}>Cambiar a Portaldot V3</button>
-          <button className="evm-secondary" onClick={prepare} disabled={status !== "ready"}>Preparar transacción</button>
+          <button className="evm-secondary" onClick={prepare} disabled={status !== "ready"}>Preparar despliegue</button>
           <button className="evm-danger" onClick={deploy} disabled={status !== "prepared"}>Abrir confirmación de firma</button>
         </div>
         <div className={`evm-status evm-status-${status}`} role="status">
