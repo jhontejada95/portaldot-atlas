@@ -41,6 +41,25 @@ async function findSubWalletProvider() {
   });
 }
 
+async function findAlternateEvmProvider() {
+  return new Promise((resolve) => {
+    const candidates = [];
+    const onAnnouncement = (event) => {
+      const provider = event?.detail?.provider;
+      const info = event?.detail?.info;
+      if (provider && !provider.isSubWallet && !candidates.some((item) => item.provider === provider)) {
+        candidates.push({ provider, label: info?.name || info?.rdns || "wallet EVM compatible" });
+      }
+    };
+    window.addEventListener("eip6963:announceProvider", onAnnouncement);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    window.setTimeout(() => {
+      window.removeEventListener("eip6963:announceProvider", onAnnouncement);
+      resolve(candidates[0] || (window.ethereum && !window.ethereum.isSubWallet ? { provider: window.ethereum, label: "wallet EVM compatible" } : null));
+    }, 700);
+  });
+}
+
 export function EvmDeploy() {
   const [provider, setProvider] = useState(null);
   const [providerLabel, setProviderLabel] = useState("");
@@ -96,6 +115,11 @@ export function EvmDeploy() {
   }
 
   async function connect() {
+    const alternate = await findAlternateEvmProvider();
+    if (alternate) {
+      await connectWith(alternate.provider, alternate.label);
+      return;
+    }
     const injected = await findSubWalletProvider();
     if (!injected) {
       setStatus("error");
@@ -107,22 +131,7 @@ export function EvmDeploy() {
   }
 
   async function connectAlternate() {
-    const candidate = await new Promise((resolve) => {
-      const candidates = [];
-      const onAnnouncement = (event) => {
-        const provider = event?.detail?.provider;
-        const info = event?.detail?.info;
-        if (provider && !provider.isSubWallet && !candidates.some((item) => item.provider === provider)) {
-          candidates.push({ provider, label: info?.name || info?.rdns || "wallet EVM compatible" });
-        }
-      };
-      window.addEventListener("eip6963:announceProvider", onAnnouncement);
-      window.dispatchEvent(new Event("eip6963:requestProvider"));
-      window.setTimeout(() => {
-        window.removeEventListener("eip6963:announceProvider", onAnnouncement);
-        resolve(candidates[0] || (window.ethereum && !window.ethereum.isSubWallet ? { provider: window.ethereum, label: "wallet EVM compatible" } : null));
-      }, 700);
-    });
+    const candidate = await findAlternateEvmProvider();
     await connectWith(candidate?.provider, candidate?.label || "wallet EVM compatible");
   }
 
