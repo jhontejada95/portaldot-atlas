@@ -6,7 +6,7 @@ const WSS_URL = "wss://test-node-v3.portaldot.dev";
 const DESTINATION = "5FN3bCiDjDvTvF29nGS5ct8RA55nFKLTcqJgRau3mSC3bMb4";
 const SOURCE = "5CckzYq2DCUNRXdekaorov8JH9yrzPSWxA7fHszN2orNcTU4";
 const DECIMALS = 14;
-const AMOUNT_POT = 50n;
+const AMOUNT_POT = 100n;
 const AMOUNT = AMOUNT_POT * 10n ** BigInt(DECIMALS);
 
 function formatPot(value) {
