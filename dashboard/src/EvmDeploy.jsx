@@ -126,6 +126,30 @@ export function EvmDeploy() {
     await connectWith(candidate?.provider, candidate?.label || "wallet EVM compatible");
   }
 
+  async function refreshConnected() {
+    if (!provider || !address) return connect();
+    try {
+      setStatus("checking");
+      const currentChain = await provider.getChainId();
+      const currentBalance = await publicClient.getBalance({ address });
+      setChainId(currentChain);
+      setBalance(currentBalance);
+      if (currentChain !== CHAIN_ID) {
+        setStatus("wrong-chain");
+        setMessage(`${providerLabel || "La wallet"} está en Chain ID ${currentChain}. Selecciona Portaldot V3 (${CHAIN_ID}) desde esa misma wallet.`);
+      } else if (address.toLowerCase() !== CONTROLLED_EVM.toLowerCase()) {
+        setStatus("wrong-address");
+        setMessage(`La cuenta conectada no coincide con tu cuenta EVM controlada. Esperaba ${short(CONTROLLED_EVM)}.`);
+      } else {
+        setStatus("ready");
+        setMessage("Wallet correcta y red correcta. El despliegue está listo para preparar, sin firmar todavía.");
+      }
+    } catch (error) {
+      setStatus("error");
+      setMessage(error?.shortMessage || error?.message || "No se pudo volver a comprobar la wallet.");
+    }
+  }
+
   async function switchNetwork() {
     if (!provider) return;
     try {
@@ -200,7 +224,7 @@ export function EvmDeploy() {
           <div><span>Saldo leído</span><strong>{balance == null ? "—" : `${formatEther(balance)} POT`}</strong></div>
         </div>
         <div className="evm-actions">
-          <button className="evm-primary" onClick={connect}>{address ? "Volver a comprobar wallet" : "Conectar wallet EVM"}</button>
+          <button className="evm-primary" onClick={address ? refreshConnected : connect}>{address ? "Volver a comprobar wallet" : "Conectar wallet EVM"}</button>
           {showAlternate && <button className="evm-secondary" onClick={connectAlternate}>Conectar wallet EVM compatible</button>}
           <button className="evm-secondary" onClick={switchNetwork} disabled={!provider || status !== "wrong-chain"}>Cambiar a Portaldot V3</button>
           <button className="evm-secondary" onClick={prepare} disabled={status !== "ready"}>Preparar transacción</button>
