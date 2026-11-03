@@ -1,0 +1,178 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner_",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyAnchored",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MissingEvidence",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotOwner",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "evidenceId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "commitment",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "submitter",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "season",
+        "type": "uint64"
+      }
+    ],
+    "name": "EvidenceAnchored",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "evidenceId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum EvidenceAnchor.Status",
+        "name": "status",
+        "type": "uint8"
+      }
+    ],
+    "name": "EvidenceReviewed",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "evidenceId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "commitment",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "season",
+        "type": "uint64"
+      }
+    ],
+    "name": "anchor",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "evidenceId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getRecord",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "submitter",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "season",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "createdAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "enum EvidenceAnchor.Status",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "commitment",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.Record",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "evidenceId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum EvidenceAnchor.Status",
+        "name": "status",
+        "type": "uint8"
+      }
+    ],
+    "name": "review",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
