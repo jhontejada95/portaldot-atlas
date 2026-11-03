@@ -127,11 +127,17 @@ export function EvmDeploy() {
       setStatus("idle");
     } catch (error) {
       if (error?.code === 4902) {
+        if (providerLabel === "SubWallet") {
+          setShowAlternate(true);
+          setStatus("error");
+          setMessage("SubWallet no admite esta red EVM V3 como red personalizada. Usa una wallet EVM compatible, como Rabby, con la misma cuenta 0x91ee…09A2.");
+          return;
+        }
         await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: `0x${CHAIN_ID.toString(16)}`, chainName: CHAIN.name, nativeCurrency: CHAIN.nativeCurrency, rpcUrls: [RPC_URL], blockExplorerUrls: ["https://scanner-testnet-v3.portaldot.dev/"] }] });
         setMessage(`Red añadida a ${providerLabel || "la wallet"}. Vuelve a comprobar para leer el saldo de Portaldot V3.`);
         setStatus("idle");
       } else {
-        if (/not supported|unsupported|cannot connect/i.test(error?.message || "")) {
+        if (error?.code === 4200 || /not supported|unsupported|cannot connect|invalid parameter/i.test(error?.message || "")) {
           setShowAlternate(true);
           setStatus("error");
           setMessage("SubWallet no admite esta red EVM V3 como red personalizada. Usa una wallet EVM compatible, como Rabby, con la misma cuenta 0x91ee…09A2.");
