@@ -4,7 +4,8 @@ import { evidenceAnchorAbi, evidenceAnchorBytecode } from "./evm-deploy-artifact
 
 const RPC_URL = "https://test-evm-rpc-v3.portaldot.dev";
 const CHAIN_ID = 420420777;
-const EXPECTED_EVM = "0xd3f0056a2c4e3332aaee66047851034806adfdc0";
+const CONTROLLED_EVM = "0x91ee4Cf394123153eB19ED7053A9FE9C4b7099A2";
+const CONTROLLED_NATIVE = "5FN3bCiDjDvTvF29nGS5ct8RA55nFKLTcqJgRau3mSC3bMb4";
 const CHAIN = {
   id: CHAIN_ID,
   name: "Portaldot V3 Test",
@@ -71,9 +72,12 @@ export function EvmDeploy() {
       if (currentChain !== CHAIN_ID) {
         setStatus("wrong-chain");
         setMessage(`La wallet está en Chain ID ${currentChain}. Cambia a Portaldot V3 (${CHAIN_ID}) desde la wallet.`);
-      } else if (connected.toLowerCase() !== EXPECTED_EVM) {
+      } else if (connected.toLowerCase() !== CONTROLLED_EVM.toLowerCase()) {
         setStatus("wrong-address");
-        setMessage(`La cuenta conectada no es la representación EVM de la cuenta financiada. Esperaba ${short(EXPECTED_EVM)}.`);
+        setMessage(`La cuenta conectada no coincide con tu cuenta EVM controlada. Esperaba ${short(CONTROLLED_EVM)}.`);
+      } else if (currentBalance === 0n) {
+        setStatus("needs-funding");
+        setMessage(`La cuenta es correcta, pero todavía no tiene POT en V3. Su cuenta nativa mapeada es ${short(CONTROLLED_NATIVE)}.`);
       } else {
         setStatus("ready");
         setMessage("Wallet correcta y red correcta. El despliegue está listo para preparar, sin firmar todavía.");
@@ -81,6 +85,25 @@ export function EvmDeploy() {
     } catch (error) {
       setStatus("error");
       setMessage(error?.shortMessage || error?.message || "La wallet canceló o rechazó la conexión.");
+    }
+  }
+
+  async function switchNetwork() {
+    if (!provider) return;
+    try {
+      setStatus("checking");
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: `0x${CHAIN_ID.toString(16)}` }] });
+      setMessage("Red cambiada. Vuelve a comprobar la wallet para leer el saldo de Portaldot V3.");
+      setStatus("idle");
+    } catch (error) {
+      if (error?.code === 4902) {
+        await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: `0x${CHAIN_ID.toString(16)}`, chainName: CHAIN.name, nativeCurrency: CHAIN.nativeCurrency, rpcUrls: [RPC_URL], blockExplorerUrls: ["https://scanner-testnet-v3.portaldot.dev/"] }] });
+        setMessage("Red añadida a SubWallet. Vuelve a comprobar la wallet para leer el saldo de Portaldot V3.");
+        setStatus("idle");
+      } else {
+        setStatus("error");
+        setMessage(error?.shortMessage || error?.message || "No se pudo cambiar la red desde la wallet.");
+      }
     }
   }
 
@@ -121,12 +144,14 @@ export function EvmDeploy() {
         <p className="evm-lede">Conecta la wallet desde el navegador para comprobar la cuenta EVM mapeada y preparar el contrato de evidencia. La seed phrase y las claves privadas no se solicitan ni se almacenan.</p>
         <div className="evm-grid">
           <div><span>Red</span><strong>Portaldot V3 · {CHAIN_ID}</strong></div>
-          <div><span>Cuenta esperada</span><code>{short(EXPECTED_EVM)}</code></div>
+          <div><span>Cuenta EVM controlada</span><code>{short(CONTROLLED_EVM)}</code></div>
+          <div><span>Mapeo nativo para fondeo</span><code>{short(CONTROLLED_NATIVE)}</code></div>
           <div><span>Contrato</span><strong>EvidenceAnchor · v0.1</strong></div>
           <div><span>Saldo leído</span><strong>{balance == null ? "—" : `${formatEther(balance)} POT`}</strong></div>
         </div>
         <div className="evm-actions">
           <button className="evm-primary" onClick={connect}>{address ? "Volver a comprobar wallet" : "Conectar wallet EVM"}</button>
+          <button className="evm-secondary" onClick={switchNetwork} disabled={!provider || status !== "wrong-chain"}>Cambiar a Portaldot V3</button>
           <button className="evm-secondary" onClick={prepare} disabled={status !== "ready"}>Preparar transacción</button>
           <button className="evm-danger" onClick={deploy} disabled={status !== "prepared"}>Abrir confirmación de firma</button>
         </div>
