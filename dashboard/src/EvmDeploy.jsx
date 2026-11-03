@@ -107,20 +107,23 @@ export function EvmDeploy() {
   }
 
   async function connectAlternate() {
-    const injected = await new Promise((resolve) => {
+    const candidate = await new Promise((resolve) => {
       const candidates = [];
       const onAnnouncement = (event) => {
         const provider = event?.detail?.provider;
-        if (provider && !provider.isSubWallet && !candidates.includes(provider)) candidates.push(provider);
+        const info = event?.detail?.info;
+        if (provider && !provider.isSubWallet && !candidates.some((item) => item.provider === provider)) {
+          candidates.push({ provider, label: info?.name || info?.rdns || "wallet EVM compatible" });
+        }
       };
       window.addEventListener("eip6963:announceProvider", onAnnouncement);
       window.dispatchEvent(new Event("eip6963:requestProvider"));
       window.setTimeout(() => {
         window.removeEventListener("eip6963:announceProvider", onAnnouncement);
-        resolve(candidates[0] || (window.ethereum && !window.ethereum.isSubWallet ? window.ethereum : null));
+        resolve(candidates[0] || (window.ethereum && !window.ethereum.isSubWallet ? { provider: window.ethereum, label: "wallet EVM compatible" } : null));
       }, 700);
     });
-    await connectWith(injected, "wallet EVM compatible");
+    await connectWith(candidate?.provider, candidate?.label || "wallet EVM compatible");
   }
 
   async function switchNetwork() {
@@ -142,10 +145,10 @@ export function EvmDeploy() {
         setMessage(`Red añadida a ${providerLabel || "la wallet"}. Vuelve a comprobar para leer el saldo de Portaldot V3.`);
         setStatus("idle");
       } else {
-        if (error?.code === 4200 || /not supported|unsupported|cannot connect|invalid parameter/i.test(error?.message || "")) {
+        if (error?.code === 4200 || /not supported|unsupported|cannot connect|invalid parameter|internal error/i.test(error?.message || "")) {
           setShowAlternate(true);
           setStatus("error");
-          setMessage("SubWallet no admite esta red EVM V3 como red personalizada. Usa una wallet EVM compatible, como Rabby, con la misma cuenta 0x91ee…09A2.");
+          setMessage(`${providerLabel || "Este proveedor"} conectó la cuenta, pero no puede cambiar a Portaldot V3. Usa una wallet EVM compatible con redes personalizadas, como Rabby, manteniendo la cuenta 0x91ee…09A2.`);
           return;
         }
         setStatus("error");
