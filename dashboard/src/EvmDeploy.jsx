@@ -16,6 +16,30 @@ function short(value) {
   return value ? `${value.slice(0, 8)}…${value.slice(-6)}` : "—";
 }
 
+async function findSubWalletProvider() {
+  if (window.SubWallet?.isSubWallet) return window.SubWallet;
+  if (window.ethereum?.isSubWallet) return window.ethereum;
+  return new Promise((resolve) => {
+    let settled = false;
+    const onAnnouncement = (event) => {
+      const provider = event?.detail?.provider;
+      if (provider?.isSubWallet) {
+        settled = true;
+        window.removeEventListener("eip6963:announceProvider", onAnnouncement);
+        resolve(provider);
+      }
+    };
+    window.addEventListener("eip6963:announceProvider", onAnnouncement);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    window.setTimeout(() => {
+      if (!settled) {
+        window.removeEventListener("eip6963:announceProvider", onAnnouncement);
+        resolve(null);
+      }
+    }, 700);
+  });
+}
+
 export function EvmDeploy() {
   const [provider, setProvider] = useState(null);
   const [address, setAddress] = useState("");
@@ -27,15 +51,15 @@ export function EvmDeploy() {
   const publicClient = useMemo(() => createPublicClient({ chain: CHAIN, transport: http(RPC_URL) }), []);
 
   async function connect() {
-    const injected = window.ethereum;
+    const injected = await findSubWalletProvider();
     if (!injected) {
       setStatus("error");
-      setMessage("No detecté una wallet EVM en este navegador. Abre esta página con SubWallet/MetaMask habilitada.");
+      setMessage("No detecté SubWallet en este navegador. Abre la página en el perfil donde está instalada y habilita el acceso del sitio.");
       return;
     }
     try {
       setStatus("checking");
-      setMessage("Solicitando conexión a la wallet…");
+      setMessage("Solicitando conexión a SubWallet…");
       const wallet = createWalletClient({ chain: CHAIN, transport: custom(injected) });
       const [connected] = await wallet.requestAddresses();
       const currentChain = await wallet.getChainId();
