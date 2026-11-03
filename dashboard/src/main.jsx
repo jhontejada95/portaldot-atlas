@@ -12,6 +12,7 @@ const isLearn = window.location.pathname === "/learn";
 const isLanding = window.location.pathname === "/" || window.location.pathname === "";
 const isEvmDeploy = window.location.pathname === "/evm-deploy";
 const isCampaignDeploy = window.location.pathname === "/campaign-deploy";
+const isGemDeploy = window.location.pathname === "/gem-deploy";
 const isNativeFund = window.location.pathname === "/native-fund";
 
 function NotFound() {
@@ -20,6 +21,6 @@ function NotFound() {
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    {isDashboard ? <App /> : isLearn ? <Learn /> : (isEvmDeploy || isCampaignDeploy) ? <EvmDeploy /> : isNativeFund ? <NativeFund /> : isLanding ? <Landing /> : <NotFound />}
+    {isDashboard ? <App /> : isLearn ? <Learn /> : (isEvmDeploy || isCampaignDeploy || isGemDeploy) ? <EvmDeploy /> : isNativeFund ? <NativeFund /> : isLanding ? <Landing /> : <NotFound />}
   </React.StrictMode>,
 );

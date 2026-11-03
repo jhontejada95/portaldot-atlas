@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { createPublicClient, createWalletClient, custom, encodeDeployData, formatEther, http } from "viem";
 import { evidenceAnchorAbi, evidenceAnchorBytecode } from "./evm-deploy-artifact.js";
 import { campaignRegistryAbi, campaignRegistryBytecode } from "./campaign-registry-artifact.js";
+import { gemLedgerAbi, gemLedgerBytecode } from "./gem-ledger-artifact.js";
 
 const RPC_URL = "https://test-evm-rpc-v3.portaldot.dev";
 const CHAIN_ID = 420420777;
@@ -71,9 +72,10 @@ async function findAlternateEvmProvider() {
 
 export function EvmDeploy() {
   const isCampaignRegistry = window.location.pathname === "/campaign-deploy";
-  const contractAbi = isCampaignRegistry ? campaignRegistryAbi : evidenceAnchorAbi;
-  const contractBytecode = isCampaignRegistry ? campaignRegistryBytecode : evidenceAnchorBytecode;
-  const contractName = isCampaignRegistry ? "CampaignRegistry · V3 compact Yul" : "EvidenceAnchor · V3 compact Yul";
+  const isGemLedger = window.location.pathname === "/gem-deploy";
+  const contractAbi = isCampaignRegistry ? campaignRegistryAbi : isGemLedger ? gemLedgerAbi : evidenceAnchorAbi;
+  const contractBytecode = isCampaignRegistry ? campaignRegistryBytecode : isGemLedger ? gemLedgerBytecode : evidenceAnchorBytecode;
+  const contractName = isCampaignRegistry ? "CampaignRegistry · V3 compact Yul" : isGemLedger ? "GemLedger · V3 compact Yul" : "EvidenceAnchor · V3 compact Yul";
   const [provider, setProvider] = useState(null);
   const [providerLabel, setProviderLabel] = useState("");
   const [address, setAddress] = useState("");
