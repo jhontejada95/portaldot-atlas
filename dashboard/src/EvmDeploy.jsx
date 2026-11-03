@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createPublicClient, createWalletClient, custom, formatEther, http } from "viem";
+import { createPublicClient, createWalletClient, custom, encodeDeployData, formatEther, http } from "viem";
 import { evidenceAnchorAbi, evidenceAnchorBytecode } from "./evm-deploy-artifact.js";
 
 const RPC_URL = "https://test-evm-rpc-v3.portaldot.dev";
@@ -200,8 +200,17 @@ export function EvmDeploy() {
 
   async function prepare() {
     if (!provider || !address || status !== "ready") return;
-    setStatus("prepared");
-    setMessage("Solicitud preparada. No se ha enviado ninguna transacción. Antes de firmar, revisa la wallet y confirma aquí.");
+    try {
+      setStatus("checking");
+      setMessage("Simulando el despliegue en Portaldot V3…");
+      const data = encodeDeployData({ abi: evidenceAnchorAbi, bytecode: evidenceAnchorBytecode, args: [address] });
+      const gas = await publicClient.estimateGas({ account: address, data });
+      setStatus("prepared");
+      setMessage(`Solicitud preparada con una estimación de ${gas.toString()} gas. No se ha enviado ninguna transacción. Antes de firmar, revisa la wallet y confirma aquí.`);
+    } catch (error) {
+      setStatus("error");
+      setMessage(`El RPC V3 rechazó la simulación del despliegue. No se ha firmado ni enviado nada. ${error?.shortMessage || error?.message || "Revisa el contrato y vuelve a intentarlo cuando el nodo acepte la simulación."}`);
+    }
   }
 
   async function deploy() {
