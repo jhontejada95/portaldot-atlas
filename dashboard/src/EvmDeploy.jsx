@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createPublicClient, createWalletClient, custom, encodeDeployData, formatEther, http } from "viem";
 import { evidenceAnchorAbi, evidenceAnchorBytecode } from "./evm-deploy-artifact.js";
+import { campaignRegistryAbi, campaignRegistryBytecode } from "./campaign-registry-artifact.js";
 
 const RPC_URL = "https://test-evm-rpc-v3.portaldot.dev";
 const CHAIN_ID = 420420777;
@@ -69,6 +70,10 @@ async function findAlternateEvmProvider() {
 }
 
 export function EvmDeploy() {
+  const isCampaignRegistry = window.location.pathname === "/campaign-deploy";
+  const contractAbi = isCampaignRegistry ? campaignRegistryAbi : evidenceAnchorAbi;
+  const contractBytecode = isCampaignRegistry ? campaignRegistryBytecode : evidenceAnchorBytecode;
+  const contractName = isCampaignRegistry ? "CampaignRegistry · V3 compact Yul" : "EvidenceAnchor · V3 compact Yul";
   const [provider, setProvider] = useState(null);
   const [providerLabel, setProviderLabel] = useState("");
   const [address, setAddress] = useState("");
@@ -206,7 +211,7 @@ export function EvmDeploy() {
     try {
       setStatus("checking");
       setMessage("Simulando el despliegue en Portaldot V3…");
-      const data = encodeDeployData({ abi: evidenceAnchorAbi, bytecode: evidenceAnchorBytecode });
+      const data = encodeDeployData({ abi: contractAbi, bytecode: contractBytecode });
       const gas = await publicClient.estimateGas({ account: address, data });
       const gasPrice = await publicClient.getGasPrice();
       const fee = gas * gasPrice;
@@ -233,8 +238,8 @@ export function EvmDeploy() {
     try {
       const hash = await provider.deployContract({
         account: address,
-        abi: evidenceAnchorAbi,
-        bytecode: evidenceAnchorBytecode,
+        abi: contractAbi,
+        bytecode: contractBytecode,
         gas: preparedGas || undefined,
       });
       setDeployment(hash);
@@ -252,14 +257,14 @@ export function EvmDeploy() {
   return (
     <main className="evm-page">
       <section className="evm-card">
-        <p className="evm-eyebrow">ATLAS · EVM EVIDENCE ANCHOR</p>
+        <p className="evm-eyebrow">ATLAS · EVM CONTRACT DEPLOYMENT</p>
         <h1>Preparar despliegue en Portaldot V3</h1>
         <p className="evm-lede">Conecta la wallet desde el navegador para comprobar la cuenta EVM mapeada y preparar el contrato de evidencia. La seed phrase y las claves privadas no se solicitan ni se almacenan.</p>
         <div className="evm-grid">
           <div><span>Red</span><strong>Portaldot V3 · {CHAIN_ID}</strong></div>
           <div><span>Cuenta EVM controlada</span><code>{short(CONTROLLED_EVM)}</code></div>
           <div><span>Mapeo nativo para fondeo</span><code>{short(CONTROLLED_NATIVE)}</code></div>
-          <div><span>Contrato</span><strong>EvidenceAnchor · V3 compact Yul</strong></div>
+          <div><span>Contrato</span><strong>{contractName}</strong></div>
           <div><span>Saldo leído</span><strong>{balance == null ? "—" : `${formatEther(balance)} POT`}</strong></div>
         </div>
         <div className="evm-actions">
