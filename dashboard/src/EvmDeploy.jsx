@@ -44,18 +44,26 @@ async function findSubWalletProvider() {
 async function findAlternateEvmProvider() {
   return new Promise((resolve) => {
     const candidates = [];
+    const addCandidate = (provider, label) => {
+      if (provider && !provider.isSubWallet && !candidates.some((item) => item.provider === provider)) {
+        candidates.push({ provider, label: label || "wallet EVM compatible" });
+      }
+    };
+    const injectedProviders = Array.isArray(window.ethereum?.providers) ? window.ethereum.providers : [];
+    injectedProviders.forEach((provider) => addCandidate(provider, provider.isRabby ? "Rabby Wallet" : "wallet EVM compatible"));
+    addCandidate(window.rabby, "Rabby Wallet");
+    addCandidate(window.ethereum?.isRabby ? window.ethereum : null, "Rabby Wallet");
     const onAnnouncement = (event) => {
       const provider = event?.detail?.provider;
       const info = event?.detail?.info;
-      if (provider && !provider.isSubWallet && !candidates.some((item) => item.provider === provider)) {
-        candidates.push({ provider, label: info?.name || info?.rdns || "wallet EVM compatible" });
-      }
+      addCandidate(provider, info?.name || info?.rdns);
     };
     window.addEventListener("eip6963:announceProvider", onAnnouncement);
     window.dispatchEvent(new Event("eip6963:requestProvider"));
     window.setTimeout(() => {
       window.removeEventListener("eip6963:announceProvider", onAnnouncement);
-      resolve(candidates[0] || (window.ethereum && !window.ethereum.isSubWallet ? { provider: window.ethereum, label: "wallet EVM compatible" } : null));
+      addCandidate(window.ethereum, window.ethereum?.isRabby ? "Rabby Wallet" : "wallet EVM compatible");
+      resolve(candidates[0] || null);
     }, 700);
   });
 }
