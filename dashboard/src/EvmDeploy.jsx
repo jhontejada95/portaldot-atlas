@@ -148,7 +148,7 @@ export function EvmDeploy() {
         if (error?.code === 4200 || /not supported|unsupported|cannot connect|invalid parameter|internal error/i.test(error?.message || "")) {
           setShowAlternate(true);
           setStatus("error");
-          setMessage(`${providerLabel || "Este proveedor"} conectó la cuenta, pero no puede cambiar a Portaldot V3. Usa una wallet EVM compatible con redes personalizadas, como Rabby, manteniendo la cuenta 0x91ee…09A2.`);
+          setMessage(`${providerLabel || "Este proveedor"} conectó la cuenta, pero rechazó el cambio automático a Portaldot V3. Añade la red manualmente en la wallet y vuelve a comprobar, manteniendo la cuenta 0x91ee…09A2.`);
           return;
         }
         setStatus("error");
