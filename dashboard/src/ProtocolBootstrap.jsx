@@ -13,6 +13,9 @@ const CHAIN = {
 };
 const CAMPAIGN_ID = keccak256(toBytes("atlas-season-0"));
 const RULES_HASH = keccak256(toBytes("atlas-season-0-rules-v1"));
+// Portaldot V3 currently overestimates these compact Yul writes on eth_estimateGas.
+// An explicit limit keeps the wallet from rejecting a valid transaction before signing.
+const INTERNAL_TX_GAS = 2_000_000n;
 
 function short(value) { return value ? `${value.slice(0, 8)}…${value.slice(-6)}` : "—"; }
 
@@ -56,18 +59,18 @@ export function ProtocolBootstrap() {
   }
 
   async function configureSeason() {
-    const hash = await send("configuración de Season 0", () => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.gemLedger, abi: gemLedgerAbi, functionName: "configureSeason", args: [0n, 1000n] }));
+    const hash = await send("configuración de Season 0", () => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.gemLedger, abi: gemLedgerAbi, functionName: "configureSeason", args: [0n, 1000n], gas: INTERNAL_TX_GAS }));
     if (hash) setSeasonConfigured(true);
   }
 
   async function createCampaign() {
     const now = BigInt(Math.floor(Date.now() / 1000));
-    const hash = await send("creación de la campaña Season 0", () => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "create", args: [CAMPAIGN_ID, RULES_HASH, 1000n, 100n, 86400n, now, now + 30n * 86400n] }));
+    const hash = await send("creación de la campaña Season 0", () => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "create", args: [CAMPAIGN_ID, RULES_HASH, 1000n, 100n, 86400n, now, now + 30n * 86400n], gas: INTERNAL_TX_GAS }));
     if (hash) setCampaignCreated(true);
   }
 
   async function publishCampaign() {
-    const hash = await send("publicación de la campaña Season 0", () => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "publish", args: [CAMPAIGN_ID] }));
+    const hash = await send("publicación de la campaña Season 0", () => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "publish", args: [CAMPAIGN_ID], gas: INTERNAL_TX_GAS }));
     if (hash) setCampaignPublished(true);
   }
 
