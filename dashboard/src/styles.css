@@ -639,6 +639,7 @@ html[data-theme="light"] .field-lens-date { color: #586c86; }
 .studio-preview-card .campaign-art { height: 122px; }
 .studio-preview-card .campaign-card-body h3 { margin: 9px 0 8px; color: #203a63; font-family: "Plus Jakarta Sans", Inter, sans-serif; font-size: 20px; }
 .studio-preview-card .campaign-card-body p { margin: 0; color: #405875; font-size: 13px; line-height: 1.55; }
+html[data-theme="dark"] .studio-preview-card .campaign-card-body p { color: #405875; }
 .studio-preview-card .campaign-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; margin-top: 17px; }
 .studio-preview-card .campaign-stats span { display: grid; gap: 4px; min-width: 0; color: #4b637e; font-size: 11px; line-height: 1.25; }
 .studio-preview-card .campaign-stats strong { display: block; min-height: 21px; color: #1d3f70; font-size: 17px; line-height: 1.15; white-space: normal; }
