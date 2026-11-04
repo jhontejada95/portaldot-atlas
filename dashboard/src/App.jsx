@@ -8,9 +8,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { web3Accounts, web3AccountsSubscribe, web3Enable, web3FromSource } from "@polkadot/extension-dapp";
 import { stringToHex } from "@polkadot/util";
+import { createPublicClient, http, keccak256, toBytes } from "viem";
 import { verifyEvidenceRecord } from "./verify-evidence.js";
 import { atlasApi } from "./api.js";
 import { CampaignStudio } from "./CampaignStudio.jsx";
+import { PORTALDOT_V3 } from "./contract-deployments.js";
+import { campaignRegistryAbi } from "./campaign-registry-artifact.js";
+
+const CAMPAIGN_BOARD_ID = keccak256(toBytes("atlas-season-0"));
+const CAMPAIGN_BOARD_CLIENT = createPublicClient({ transport: http(PORTALDOT_V3.rpcUrl) });
 
 const navigationGroups = [
   {
@@ -167,8 +173,24 @@ export function App() {
   const [verification, setVerification] = useState({});
   const [farmDemo, setFarmDemo] = useState({ social: "available", score: 240, cache: null });
   const [campaignStarted, setCampaignStarted] = useState(false);
+  const [campaignChain, setCampaignChain] = useState({ state: "loading" });
   const [farmSlide, setFarmSlide] = useState(0);
   const [fieldLensHotspot, setFieldLensHotspot] = useState("community");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const exists = await CAMPAIGN_BOARD_CLIENT.readContract({ address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "exists", args: [CAMPAIGN_BOARD_ID] });
+        if (!exists) { if (!cancelled) setCampaignChain({ state: "missing" }); return; }
+        const [owner, rulesHash, budget, maxPerWallet, cooldown, startsAt, endsAt, status] = await CAMPAIGN_BOARD_CLIENT.readContract({ address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "campaign", args: [CAMPAIGN_BOARD_ID] });
+        if (!cancelled) setCampaignChain({ state: "ready", owner, rulesHash, budget, maxPerWallet, cooldown, startsAt, endsAt, status: Number(status) });
+      } catch (readError) {
+        if (!cancelled) setCampaignChain({ state: "error", message: readError instanceof Error ? readError.message : "Campaign data is temporarily unavailable." });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const refresh = useCallback(async () => {
     setState("loading");
@@ -490,11 +512,18 @@ export function App() {
     <section className="farm-panel leaderboard-panel"><div className="panel-heading"><div><p className="eyebrow">RANKED BY SEASON SCORE</p><h2>Community leaderboard</h2></div><span className="farm-count">Top 4</span></div><div className="leaderboard">{FARM_DEMO_LEADERBOARD.map(([name, score, rank], index) => <div className={`leader-row ${name === "You" ? "is-you" : ""}`} key={name}><span className="leader-place">{String(index + 1).padStart(2, "0")}</span><span className="leader-avatar">{name[0]}</span><div><strong>{name}</strong><small>{rank}</small></div><b>{score} pts</b></div>)}</div></section>
   </section>;
 
-  const renderCampaigns = () => <section className="page-section campaign-page">
+  const renderCampaigns = () => {
+    const chainPublished = campaignChain.state === "ready" && campaignChain.status === 1;
+    const chainStatus = campaignChain.state === "loading" ? "Checking Portaldot V3" : campaignChain.state === "ready" ? (chainPublished ? "Published on Portaldot V3" : "Registered on Portaldot V3") : campaignChain.state === "missing" ? "Campaign unavailable" : "Live data unavailable";
+    const chainBudget = campaignChain.state === "ready" ? campaignChain.budget.toString() : "—";
+    const chainReward = campaignChain.state === "ready" ? `+${campaignChain.maxPerWallet.toString()}` : "—";
+    const chainDaysLeft = campaignChain.state === "ready" ? Math.max(0, Math.ceil((Number(campaignChain.endsAt) * 1000 - Date.now()) / 86400000)) : null;
+    return <section className="page-section campaign-page">
     <div className="campaign-board-head"><div><p className="eyebrow">SEASON ZERO · CAMPAIGN BOARD</p><h1>Echo Week · First Signals</h1><p className="lede">A finite Atlas-operated campaign. Start here, complete the community proof, then unlock the next route when its evidence is ready.</p></div><button className="secondary-button campaign-back" onClick={() => setActive("farm")}><i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back to Season Route</button></div>
-    <div className="campaign-board-layout"><article className="campaign-card campaign-card-featured"><div className="campaign-art campaign-art-community"><i className="fa-solid fa-bullseye" aria-hidden="true" /></div><div className="campaign-card-body"><div className="campaign-meta"><span>Atlas-operated</span><em>Active locally</em></div><h2>Build the first signal</h2><p>Complete one community action, submit a local proof and keep building Season Score. No sponsor API or wallet is required for this preview.</p><div className="campaign-stats"><span><strong>3</strong> missions</span><span><strong>+60</strong> Score</span><span><strong>28d</strong> left</span></div><button className="primary-button" onClick={() => setCampaignStarted(true)}><i className={`fa-solid ${campaignStarted ? "fa-check" : "fa-play"}`} aria-hidden="true" /> {campaignStarted ? "Campaign started" : "Start Echo Week"}</button></div></article><aside className="campaign-detail-panel"><p className="eyebrow">CAMPAIGN FLOW</p><h2>{campaignStarted ? "Your first mission is ready" : "One route, three clear steps"}</h2><ol className="campaign-step-list"><li className={campaignStarted ? "is-current" : ""}><b>01</b><span><strong>Echo Week share</strong><small>Submit URL + campaign code for local review.</small></span><em>{farmDemo.social === "accepted" ? "Accepted" : campaignStarted ? "Ready" : "Next"}</em></li><li><b>02</b><span><strong>First Claim route</strong><small>Opens after the official V3 claim path exists.</small></span><em>V3 gated</em></li><li><b>03</b><span><strong>Sentinel mission</strong><small>Optional signed receipt for a later checkpoint.</small></span><em>Optional</em></li></ol><div className="campaign-detail-note"><i className="fa-solid fa-shield-halved" aria-hidden="true" /><span>Score is local and separate from Gems until proof policy and V3 are verified.</span></div></aside></div>
+    <div className="campaign-board-layout"><article className="campaign-card campaign-card-featured"><div className="campaign-art campaign-art-community"><i className="fa-solid fa-bullseye" aria-hidden="true" /></div><div className="campaign-card-body"><div className="campaign-meta"><span>Atlas-operated</span><em>{chainStatus}</em></div><h2>Build the first signal</h2><p>Complete one community action, submit the proof requested by this route and keep building visible Season Score.</p><div className="campaign-stats"><span><strong>{chainBudget}</strong> Gems budget</span><span><strong>{chainReward}</strong> base reward</span><span><strong>{chainDaysLeft === null ? "—" : `${chainDaysLeft}d`}</strong> remaining</span></div><button className="primary-button" onClick={() => setCampaignStarted(true)}><i className={`fa-solid ${campaignStarted ? "fa-check" : "fa-play"}`} aria-hidden="true" /> {campaignStarted ? "Campaign started" : "Start route"}</button></div></article><aside className="campaign-detail-panel"><p className="eyebrow">CAMPAIGN FLOW</p><h2>{campaignStarted ? "Your first mission is ready" : "One route, three clear steps"}</h2><ol className="campaign-step-list"><li className={campaignStarted ? "is-current" : ""}><b>01</b><span><strong>Community signal</strong><small>Complete the action and submit the proof requested by this route.</small></span><em>{farmDemo.social === "accepted" ? "Accepted" : campaignStarted ? "Ready" : "Next"}</em></li><li><b>02</b><span><strong>Reward boundary</strong><small>{chainPublished ? "The published campaign policy is readable from Portaldot V3." : "Campaign policy is being checked from Portaldot V3."}</small></span><em>{chainPublished ? "Published" : "Checking"}</em></li><li><b>03</b><span><strong>Sentinel mission</strong><small>Optional higher-signal proof for a later checkpoint.</small></span><em>Optional</em></li></ol><div className="campaign-detail-note"><i className="fa-solid fa-shield-halved" aria-hidden="true" /><span>Campaign status, budget and reward are read from Campaign Registry. Participant proof remains a separate step.</span></div></aside></div>
     <section className="campaign-principles panel"><div className="panel-heading"><div><p className="eyebrow">CAMPAIGN RULES</p><h2>What every route shows</h2></div><i className="fa-solid fa-map-location-dot large-icon" aria-hidden="true" /></div><div className="principle-grid"><span><i className="fa-solid fa-list-check" aria-hidden="true" /><strong>Exact steps</strong><small>One clear CTA per mission.</small></span><span><i className="fa-solid fa-shield-halved" aria-hidden="true" /><strong>Proof method</strong><small>Social, local review or Sentinel.</small></span><span><i className="fa-solid fa-coins" aria-hidden="true" /><strong>Reward boundary</strong><small>Score and Gems stay separate.</small></span></div></section>
   </section>;
+  };
 
   const renderComingSoon = (title, detail) => <section className="page-section coming-page"><div className="coming-hero"><span className="coming-icon"><i className="fa-solid fa-compass-drafting" aria-hidden="true" /></span><p className="eyebrow">COMING SOON · LOCAL PREVIEW</p><h1>{title}</h1><p className="lede">{detail}</p><span className="coming-soon-note"><i className="fa-solid fa-lock" aria-hidden="true" /> Hidden until the policy and V3 prerequisites are verified.</span></div></section>;
 
