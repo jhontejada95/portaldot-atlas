@@ -642,6 +642,8 @@ html[data-theme="light"] .field-lens-date { color: #586c86; }
 .studio-id-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0 0; color: #74869d; font-size: 11px; }
 .studio-id-row code { color: #1e4ed8; font-size: 10px; }
 .studio-publish-panel { margin-top: 18px; }
+.studio-cost-note { display: flex; gap: 9px; align-items: flex-start; margin: -2px 0 14px; padding: 11px 13px; border: 1px solid #ead49d; border-radius: 10px; color: #7a5b16; background: #fff9e8; font-size: 11px; line-height: 1.5; }
+.studio-cost-note i { margin-top: 2px; color: #bf8b22; }
 .studio-publish-steps { display: grid; gap: 10px; }
 .studio-publish-steps > div { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px; border: 1px solid var(--atlas-line); border-radius: 12px; background: #fbfcfe; }
 .studio-publish-steps > div.is-done { border-color: #56c9ad; background: #effbf7; }
