@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createPublicClient, createWalletClient, custom, http, keccak256, toBytes } from "viem";
+import { createPublicClient, createWalletClient, custom, encodeFunctionData, http, keccak256, toBytes } from "viem";
 import { PORTALDOT_V3 } from "./contract-deployments.js";
 import { campaignRegistryAbi } from "./campaign-registry-artifact.js";
 import { gemLedgerAbi } from "./gem-ledger-artifact.js";
@@ -54,6 +54,23 @@ export function ProtocolBootstrap() {
     }
   }
 
+  async function sendRawContract({ to, abi, functionName, args, gasPrice }) {
+    const injected = window.rabby || window.ethereum;
+    if (!injected) throw new Error("No detecté Rabby en este navegador.");
+    const data = encodeFunctionData({ abi, functionName, args });
+    return injected.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: address,
+        to,
+        data,
+        value: "0x0",
+        gas: `0x${INTERNAL_TX_GAS.toString(16)}`,
+        gasPrice: `0x${gasPrice.toString(16)}`,
+      }],
+    });
+  }
+
   async function send(label, request) {
     if (!wallet || !address) return;
     try {
@@ -69,18 +86,18 @@ export function ProtocolBootstrap() {
   }
 
   async function configureSeason() {
-    const hash = await send("configuración de Season 0", (gasPrice) => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.gemLedger, abi: gemLedgerAbi, functionName: "configureSeason", args: [0n, 1000n], gas: INTERNAL_TX_GAS, gasPrice }));
+    const hash = await send("configuración de Season 0", (gasPrice) => sendRawContract({ to: PORTALDOT_V3.contracts.gemLedger, abi: gemLedgerAbi, functionName: "configureSeason", args: [0n, 1000n], gasPrice }));
     if (hash) setSeasonConfigured(true);
   }
 
   async function createCampaign() {
     const now = BigInt(Math.floor(Date.now() / 1000));
-    const hash = await send("creación de la campaña Season 0", (gasPrice) => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "create", args: [CAMPAIGN_ID, RULES_HASH, 1000n, 100n, 86400n, now, now + 30n * 86400n], gas: INTERNAL_TX_GAS, gasPrice }));
+    const hash = await send("creación de la campaña Season 0", (gasPrice) => sendRawContract({ to: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "create", args: [CAMPAIGN_ID, RULES_HASH, 1000n, 100n, 86400n, now, now + 30n * 86400n], gasPrice }));
     if (hash) setCampaignCreated(true);
   }
 
   async function publishCampaign() {
-    const hash = await send("publicación de la campaña Season 0", (gasPrice) => wallet.writeContract({ account: address, address: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "publish", args: [CAMPAIGN_ID], gas: INTERNAL_TX_GAS, gasPrice }));
+    const hash = await send("publicación de la campaña Season 0", (gasPrice) => sendRawContract({ to: PORTALDOT_V3.contracts.campaignRegistry, abi: campaignRegistryAbi, functionName: "publish", args: [CAMPAIGN_ID], gasPrice }));
     if (hash) setCampaignPublished(true);
   }
 
