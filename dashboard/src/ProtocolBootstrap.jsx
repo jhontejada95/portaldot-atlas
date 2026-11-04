@@ -24,7 +24,8 @@ export function ProtocolBootstrap() {
   const [address, setAddress] = useState("");
   const [chainId, setChainId] = useState(null);
   const [campaignCreated, setCampaignCreated] = useState(false);
-  const [seasonConfigured, setSeasonConfigured] = useState(false);
+  // Season 0 configuration was already confirmed on-chain before this route was finalized.
+  const [seasonConfigured, setSeasonConfigured] = useState(true);
   const [campaignPublished, setCampaignPublished] = useState(false);
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
@@ -117,7 +118,7 @@ export function ProtocolBootstrap() {
         </div>
         <div className="evm-actions">
           <button className="evm-primary" onClick={connect}>{address ? "Volver a comprobar wallet" : "Conectar Rabby"}</button>
-          <button className="evm-secondary" onClick={configureSeason} disabled={!wallet || seasonConfigured}>1. Inicializar Gems</button>
+          <button className="evm-secondary" onClick={configureSeason} disabled={!wallet || seasonConfigured}>1. Gems ya inicializados</button>
           <button className="evm-secondary" onClick={createCampaign} disabled={!wallet || campaignCreated}>2. Registrar campaña</button>
           <button className="evm-danger" onClick={publishCampaign} disabled={!wallet || !campaignCreated || campaignPublished}>3. Publicar en el board</button>
         </div>
