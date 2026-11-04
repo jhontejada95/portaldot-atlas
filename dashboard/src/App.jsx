@@ -10,6 +10,7 @@ import { web3Accounts, web3AccountsSubscribe, web3Enable, web3FromSource } from 
 import { stringToHex } from "@polkadot/util";
 import { verifyEvidenceRecord } from "./verify-evidence.js";
 import { atlasApi } from "./api.js";
+import { CampaignStudio } from "./CampaignStudio.jsx";
 
 const navigationGroups = [
   {
@@ -31,7 +32,7 @@ const navigationGroups = [
   {
     label: "Operator tools",
     items: [
-      { id: "studio", label: "Campaign Studio", icon: "fa-wand-magic-sparkles", badge: "Soon", comingSoon: true, detail: "Atlas-operated" },
+      { id: "studio", label: "Campaign Studio", icon: "fa-wand-magic-sparkles", badge: "B2B", detail: "Protocol campaigns" },
       { id: "v3", label: "V3 routes", icon: "fa-route", badge: "Blocked", comingSoon: true, detail: "Awaiting verified metadata" },
     ],
   },
@@ -541,7 +542,7 @@ export function App() {
   if (active === "farm") content = renderFarm();
   if (active === "campaigns") content = renderCampaigns();
   if (active === "fieldkit") content = renderComingSoon("Field Kit", "Reward Cache, Modules and Boosters will live here as one utility surface. Season Zero keeps this intentionally local and non-transferable.");
-  if (active === "studio") content = renderComingSoon("Campaign Studio", "An Atlas-operated workspace for drafting, reviewing and freezing campaign rules before publication.");
+  if (active === "studio") content = <CampaignStudio onOpenBoard={() => setActive("campaigns")} />;
   if (active === "v3") content = renderComingSoon("V3 routes", "The route is held until Portaldot publishes verifiable V3 metadata, RPC and a supported claim path.");
   if (active === "evidence") content = renderEvidence();
   if (active === "sentinel") content = renderSentinel();
