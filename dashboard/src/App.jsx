@@ -579,8 +579,19 @@ export function App() {
       setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirmed", hash: grantHash, onChainBalance: grantedBalance } }));
     } catch (grantError) {
       if (grantHash) {
-        setReviewQueue((current) => current.map((item) => item.id === reviewItem.id ? { ...item, status: "approved", grantTxHash: grantHash, onChainBalance: grantedBalance } : item));
-        setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirmed", hash: grantHash, onChainBalance: grantedBalance, message: "Grant confirmed on-chain; queue sync will retry automatically." } }));
+        // The chain confirmation is authoritative. If the API write fails after
+        // signing (for example while Render is waking up), retry the queue sync
+        // so the item cannot reappear as pending on the next poll.
+        let synced = null;
+        try {
+          const patch = { status: "approved", reviewedAt: new Date().toISOString(), grantTxHash };
+          if (grantedBalance !== null) patch.onChainBalance = grantedBalance;
+          synced = await updateSharedCampaignSubmission(reviewItem.id, patch);
+        } catch {
+          // Keep the local confirmed state; the next queue refresh can reconcile it.
+        }
+        setReviewQueue((current) => current.map((item) => item.id === reviewItem.id ? (synced ?? { ...item, status: "approved", grantTxHash, onChainBalance: grantedBalance }) : item));
+        setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirmed", hash: grantHash, onChainBalance: grantedBalance, message: synced ? "Grant confirmed on-chain and review queue synchronized." : "Grant confirmed on-chain; queue sync will retry automatically." } }));
         return;
       }
       setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "error", message: grantError?.shortMessage || grantError?.message || "No se pudo otorgar Gems en cadena." } }));
