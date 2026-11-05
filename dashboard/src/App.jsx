@@ -67,6 +67,7 @@ const navigationGroups = [
 const navigation = navigationGroups.flatMap((group) => group.items);
 const WALLET_SESSION_KEY = "atlas-wallet-session";
 const CAMPAIGN_REVIEW_QUEUE_KEY = "atlas-campaign-review-queue";
+const IS_HOSTED_PRODUCTION = window.location.hostname === "portaldot-atlas.vercel.app";
 
 function readCampaignReviewQueue() {
   try {
@@ -223,7 +224,7 @@ export function App() {
   const [campaignProofUrl, setCampaignProofUrl] = useState("");
   const [campaignParticipantWallet, setCampaignParticipantWallet] = useState("");
   const [campaignSubmissionError, setCampaignSubmissionError] = useState("");
-  const [reviewQueue, setReviewQueue] = useState(() => readCampaignReviewQueue());
+  const [reviewQueue, setReviewQueue] = useState(() => IS_HOSTED_PRODUCTION ? [] : readCampaignReviewQueue());
   const [reviewAction, setReviewAction] = useState({});
   const [campaignChain, setCampaignChain] = useState({ state: "loading" });
   const [farmSlide, setFarmSlide] = useState(0);
@@ -236,7 +237,7 @@ export function App() {
       try {
         nextQueue = await fetchCampaignSubmissions();
       } catch {
-        nextQueue = readCampaignReviewQueue();
+        nextQueue = IS_HOSTED_PRODUCTION ? [] : readCampaignReviewQueue();
       }
       if (!active) return;
       setReviewQueue(nextQueue);
