@@ -58,6 +58,42 @@ const TeaserComponent: React.FC<Props> = () => {
   </AbsoluteFill>;
 };
 
+const SUBMISSION_OPENING = 8 * FPS;
+const SUBMISSION_POSITIONING = 10 * FPS;
+const SUBMISSION_STUDIO = 28 * FPS;
+const SUBMISSION_TECHNICAL = 8 * FPS;
+const SUBMISSION_PARTICIPANT = 22 * FPS;
+const SUBMISSION_APPROVAL = 70 * FPS;
+const SUBMISSION_CHAIN = 12 * FPS;
+const SUBMISSION_ROADMAP = 10 * FPS;
+const SUBMISSION_CLOSING = 7 * FPS;
+const SUBMISSION_TOTAL = SUBMISSION_OPENING + SUBMISSION_POSITIONING + SUBMISSION_STUDIO + SUBMISSION_TECHNICAL + SUBMISSION_PARTICIPANT + SUBMISSION_APPROVAL + SUBMISSION_CHAIN + SUBMISSION_ROADMAP + SUBMISSION_CLOSING;
+
+export const AtlasSubmission = () => <Composition id="AtlasSubmission" component={SubmissionComponent} durationInFrames={SUBMISSION_TOTAL} fps={FPS} width={1280} height={720} defaultProps={{}} />;
+
+const SubmissionComponent: React.FC<Props> = () => {
+  const {fps} = useVideoConfig();
+  const positioningStart = SUBMISSION_OPENING;
+  const studioStart = positioningStart + SUBMISSION_POSITIONING;
+  const technicalStart = studioStart + SUBMISSION_STUDIO;
+  const participantStart = technicalStart + SUBMISSION_TECHNICAL;
+  const approvalStart = participantStart + SUBMISSION_PARTICIPANT;
+  const chainStart = approvalStart + SUBMISSION_APPROVAL;
+  const roadmapStart = chainStart + SUBMISSION_CHAIN;
+  const closingStart = roadmapStart + SUBMISSION_ROADMAP;
+  return <AbsoluteFill style={{backgroundColor: palette.navy}}>
+    <Sequence name="Submission opening" durationInFrames={SUBMISSION_OPENING} premountFor={fps}><TitleCard compact eyebrow="ATLAS · SOCIALFI GROWTH LAYER" title="From attention to verified contribution." body="A protocol-ready campaign layer for acquisition, participation, review and reward." /></Sequence>
+    <Sequence name="Submission positioning" from={positioningStart} durationInFrames={SUBMISSION_POSITIONING} premountFor={fps}><TitleCard compact eyebrow="THE PRODUCT" title="Protocols create the route. Communities create the signal." body="Atlas turns a campaign brief into a journey people can understand, complete and repeat." /></Sequence>
+    <Clip src="campaign-studio-b2b.webm" title="Campaign Studio · B2B protocol setup" from={studioStart} durationInFrames={SUBMISSION_STUDIO} />
+    <Sequence name="Technical campaign boundary" from={technicalStart} durationInFrames={SUBMISSION_TECHNICAL} premountFor={fps}><TitleCard compact eyebrow="01 · CAMPAIGN POLICY" title="Rules are visible before participation starts." body="Proof method, reward budget, cooldown and campaign state are defined once and shared with every participant." /></Sequence>
+    <Clip src="verification-gems.webm" title="Campaign Board · B2C participant flow" from={participantStart} durationInFrames={SUBMISSION_PARTICIPANT} />
+    <Clip src="approve-gems.webm" title="Review Queue · Evidence and operator decision" from={approvalStart} durationInFrames={SUBMISSION_APPROVAL} />
+    <Sequence name="On-chain technical boundary" from={chainStart} durationInFrames={SUBMISSION_CHAIN} premountFor={fps}><TitleCard compact eyebrow="02 · PORTALDOT V3 + GEMLEDGER" title="The decision becomes an auditable reward." body="The queue records the evidence decision. The operator signs once. GemLedger records the grant and the participant can verify the result." /></Sequence>
+    <Sequence name="Future protocol expansion" from={roadmapStart} durationInFrames={SUBMISSION_ROADMAP} premountFor={fps}><TitleCard compact eyebrow="WHAT COMES NEXT" title="One layer, many protocol campaigns." body="Future adapters can add campaign analytics, boosters, collectible modules and network-specific reward paths without changing the participant journey." /></Sequence>
+    <Sequence name="Submission closing" from={closingStart} durationInFrames={SUBMISSION_CLOSING} premountFor={fps}><TitleCard compact eyebrow="ATLAS FOR PROTOCOLS" title="Growth that can be understood, verified and repeated." body="Discover. Complete. Review. Reward." /></Sequence>
+  </AbsoluteFill>;
+};
+
 export const MyComponent: React.FC<Props> = () => {
   const {fps} = useVideoConfig();
   const studioStart = OPENING;
