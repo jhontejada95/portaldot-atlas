@@ -15,6 +15,7 @@ import { CampaignStudio } from "./CampaignStudio.jsx";
 import { PORTALDOT_V3 } from "./contract-deployments.js";
 import { campaignRegistryAbi } from "./campaign-registry-artifact.js";
 import { gemLedgerAbi } from "./gem-ledger-artifact.js";
+import { evidenceAnchorAbi } from "./evm-deploy-artifact.js";
 
 const CAMPAIGN_BOARD_ID = keccak256(toBytes("atlas-season-0"));
 const CAMPAIGN_BOARD_CLIENT = createPublicClient({ transport: http(PORTALDOT_V3.rpcUrl) });
@@ -80,6 +81,26 @@ function readCampaignReviewQueue() {
 function writeCampaignReviewQueue(queue) {
   localStorage.setItem(CAMPAIGN_REVIEW_QUEUE_KEY, JSON.stringify(queue));
   window.dispatchEvent(new Event("atlas-review-queue-updated"));
+}
+
+async function fetchCampaignSubmissions(status) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const response = await fetch(atlasApi(`/v1/campaign-submissions${query}`), { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error(`Campaign queue unavailable (${response.status}).`);
+  const payload = await response.json();
+  return Array.isArray(payload.submissions) ? payload.submissions : [];
+}
+
+async function createSharedCampaignSubmission(payload) {
+  const response = await fetch(atlasApi("/v1/campaign-submissions"), { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(payload) });
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error ?? `Campaign submission failed (${response.status}).`);
+  return (await response.json()).submission;
+}
+
+async function updateSharedCampaignSubmission(id, patch) {
+  const response = await fetch(atlasApi(`/v1/campaign-submissions/${id}`), { method: "PATCH", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify(patch) });
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error ?? `Campaign update failed (${response.status}).`);
+  return (await response.json()).submission;
 }
 const FARM_DEMO_QUESTS = [
   { id: "social", kind: "Social", icon: "fa-bullhorn", title: "Echo Week share", detail: "Submit a local fixture for URL + campaign-code review.", reward: "+20 Season Score", state: "Available" },
@@ -202,6 +223,7 @@ export function App() {
   const [campaignStarted, setCampaignStarted] = useState(false);
   const [campaignProofUrl, setCampaignProofUrl] = useState("");
   const [campaignParticipantWallet, setCampaignParticipantWallet] = useState("");
+  const [campaignSubmissionError, setCampaignSubmissionError] = useState("");
   const [reviewQueue, setReviewQueue] = useState(() => readCampaignReviewQueue());
   const [reviewAction, setReviewAction] = useState({});
   const [campaignChain, setCampaignChain] = useState({ state: "loading" });
@@ -209,20 +231,31 @@ export function App() {
   const [fieldLensHotspot, setFieldLensHotspot] = useState("community");
 
   useEffect(() => {
-    const syncReviewQueue = () => {
-      const nextQueue = readCampaignReviewQueue();
+    let active = true;
+    const syncReviewQueue = async () => {
+      let nextQueue;
+      try {
+        nextQueue = await fetchCampaignSubmissions();
+      } catch {
+        nextQueue = readCampaignReviewQueue();
+      }
+      if (!active) return;
       setReviewQueue(nextQueue);
       if (!campaignProofUrl.trim()) return;
       const current = nextQueue.find((item) => item.proofUrl === campaignProofUrl.trim());
       if (current?.status === "approved") setFarmDemo((stateValue) => ({ ...stateValue, social: "accepted", score: Math.max(stateValue.score, 260), gems: current.onChainBalance ?? stateValue.gems, grantTxHash: current.grantTxHash ?? stateValue.grantTxHash }));
       else if (current?.status === "pending") setFarmDemo((stateValue) => ({ ...stateValue, social: "submitted" }));
     };
-    window.addEventListener("storage", syncReviewQueue);
-    window.addEventListener("atlas-review-queue-updated", syncReviewQueue);
-    syncReviewQueue();
+    const sync = () => { void syncReviewQueue(); };
+    window.addEventListener("storage", sync);
+    window.addEventListener("atlas-review-queue-updated", sync);
+    void syncReviewQueue();
+    const timer = window.setInterval(sync, 4_000);
     return () => {
-      window.removeEventListener("storage", syncReviewQueue);
-      window.removeEventListener("atlas-review-queue-updated", syncReviewQueue);
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("atlas-review-queue-updated", sync);
     };
   }, [campaignProofUrl]);
 
@@ -478,26 +511,39 @@ export function App() {
   const acceptFarmDemoProof = () => {
     setFarmDemo((current) => current.social === "submitted" ? { ...current, social: "accepted", score: current.score + 20 } : current);
   };
-  const submitCampaignProof = () => {
+  const submitCampaignProof = async () => {
     const proofUrl = campaignProofUrl.trim();
-    if (!proofUrl) return;
-    const existing = readCampaignReviewQueue().find((item) => item.proofUrl === proofUrl && item.campaignId === "atlas-season-0");
-    if (!existing) {
-      const queue = readCampaignReviewQueue();
-      queue.unshift({ id: crypto.randomUUID(), campaignId: "atlas-season-0", campaignTitle: "Build the first signal", proofUrl, participantWallet: isAddress(campaignParticipantWallet.trim()) ? campaignParticipantWallet.trim() : "", submittedAt: new Date().toISOString(), status: "pending", reward: 20 });
-      writeCampaignReviewQueue(queue);
+    const participantWallet = campaignParticipantWallet.trim();
+    if (!proofUrl || !isAddress(participantWallet)) return;
+    setCampaignSubmissionError("");
+    const id = crypto.randomUUID();
+    try {
+      const evidenceId = keccak256(toBytes(id));
+      const commitment = keccak256(toBytes(JSON.stringify({ campaignId: "atlas-season-0", proofUrl, participantWallet })));
+      const submission = await createSharedCampaignSubmission({ id, campaignId: "atlas-season-0", campaignTitle: "Build the first signal", proofUrl, participantWallet, evidenceId, commitment, reward: 20 });
+      setReviewQueue((current) => [submission, ...current.filter((item) => item.id !== submission.id)]);
+      setFarmDemo((current) => current.social === "available" ? { ...current, social: "submitted" } : current);
+    } catch (submissionError) {
+      setCampaignSubmissionError(submissionError instanceof Error ? submissionError.message : "No se pudo enviar la prueba a la cola compartida.");
     }
-    setFarmDemo((current) => current.social === "available" ? { ...current, social: "submitted" } : current);
   };
-  const decideCampaignProof = (reviewId, status) => {
-    const queue = readCampaignReviewQueue().map((item) => item.id === reviewId ? { ...item, status, reviewedAt: new Date().toISOString() } : item);
-    writeCampaignReviewQueue(queue);
-    setReviewQueue(queue);
+  const decideCampaignProof = async (reviewId, status) => {
+    const reviewedAt = new Date().toISOString();
+    try {
+      const updated = await updateSharedCampaignSubmission(reviewId, { status, reviewedAt });
+      setReviewQueue((current) => current.map((item) => item.id === reviewId ? updated : item));
+    } catch (decisionError) {
+      setReviewAction((current) => ({ ...current, [reviewId]: { state: "error", message: decisionError instanceof Error ? decisionError.message : "No se pudo actualizar la cola compartida." } }));
+    }
   };
-  const updateReviewRecipient = (reviewId, participantWallet) => {
-    const queue = readCampaignReviewQueue().map((item) => item.id === reviewId ? { ...item, participantWallet } : item);
-    writeCampaignReviewQueue(queue);
-    setReviewQueue(queue);
+  const updateReviewRecipient = async (reviewId, participantWallet) => {
+    setReviewQueue((current) => current.map((item) => item.id === reviewId ? { ...item, participantWallet } : item));
+    try {
+      const updated = await updateSharedCampaignSubmission(reviewId, { participantWallet });
+      setReviewQueue((current) => current.map((item) => item.id === reviewId ? updated : item));
+    } catch {
+      // Keep the field responsive while the next queue poll retries the shared update.
+    }
   };
   const grantCampaignGems = async (reviewItem) => {
     const participantWallet = reviewItem.participantWallet?.trim();
@@ -522,9 +568,8 @@ export function App() {
       setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirming", hash } }));
       await CAMPAIGN_BOARD_CLIENT.waitForTransactionReceipt({ hash });
       const onChainBalance = await CAMPAIGN_BOARD_CLIENT.readContract({ address: PORTALDOT_V3.contracts.gemLedger, abi: gemLedgerAbi, functionName: "balanceOf", args: [GEM_SEASON, participantWallet] });
-      const queue = readCampaignReviewQueue().map((item) => item.id === reviewItem.id ? { ...item, status: "approved", reviewedAt: new Date().toISOString(), grantTxHash: hash, onChainBalance: Number(onChainBalance) } : item);
-      writeCampaignReviewQueue(queue);
-      setReviewQueue(queue);
+      const updated = await updateSharedCampaignSubmission(reviewItem.id, { status: "approved", reviewedAt: new Date().toISOString(), grantTxHash: hash, onChainBalance: Number(onChainBalance) });
+      setReviewQueue((current) => current.map((item) => item.id === reviewItem.id ? updated : item));
       setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirmed", hash, onChainBalance: Number(onChainBalance) } }));
     } catch (grantError) {
       setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "error", message: grantError?.shortMessage || grantError?.message || "No se pudo otorgar Gems en cadena." } }));
@@ -621,7 +666,7 @@ export function App() {
     const chainDaysLeft = campaignChain.state === "ready" ? Math.max(0, Math.ceil((Number(campaignChain.endsAt) * 1000 - Date.now()) / 86400000)) : null;
     return <section className="page-section campaign-page">
       <div className="campaign-board-head"><div><p className="eyebrow">SEASON ZERO · CAMPAIGN BOARD</p><h1>Echo Week · First Signals</h1><p className="lede">A finite Atlas-operated campaign. Start here, complete the community proof, then unlock the next route when its evidence is ready.</p></div><button className="secondary-button campaign-back" onClick={() => setActive("farm")}><i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back to Season Route</button></div>
-      <div className="campaign-board-layout"><article className="campaign-card campaign-card-featured"><div className="campaign-art campaign-art-community"><i className="fa-solid fa-bullseye" aria-hidden="true" /></div><div className="campaign-card-body"><div className="campaign-meta"><span>Atlas-operated</span><em>{chainStatus}</em></div><h2>Build the first signal</h2><p>Complete one community action, submit the proof requested by this route and keep building visible Season Score.</p><div className="campaign-stats"><span><strong>{chainBudget}</strong> Gems budget</span><span><strong>{chainReward}</strong> base reward</span><span><strong>{chainDaysLeft === null ? "—" : `${chainDaysLeft}d`}</strong> remaining</span></div><button className="primary-button" onClick={() => setCampaignStarted(true)}><i className={`fa-solid ${campaignStarted ? "fa-check" : "fa-play"}`} aria-hidden="true" /> {campaignStarted ? "Campaign started" : "Start route"}</button></div></article><aside className="campaign-detail-panel"><p className="eyebrow">CAMPAIGN FLOW</p><h2>{campaignStarted ? "Your first mission is ready" : "One route, three clear steps"}</h2><ol className="campaign-step-list"><li className={campaignStarted ? "is-current" : ""}><b>01</b><span><strong>Community signal</strong><small>Complete the action and submit the proof requested by this route.</small></span><em>{farmDemo.social === "accepted" ? "Accepted" : farmDemo.social === "submitted" ? "In review" : campaignStarted ? "Ready" : "Next"}</em></li><li><b>02</b><span><strong>Reward boundary</strong><small>{chainPublished ? "The published campaign policy is readable from Portaldot V3." : "Campaign policy is being checked from Portaldot V3."}</small></span><em>{chainPublished ? "Published" : "Checking"}</em></li><li><b>03</b><span><strong>Sentinel mission</strong><small>Optional higher-signal proof for a later checkpoint.</small></span><em>Optional</em></li></ol>{campaignStarted ? <section className="campaign-proof-form" aria-label="Submit campaign proof"><p className="eyebrow">PROOF SUBMISSION</p><h3>{farmDemo.social === "accepted" ? "Proof accepted" : farmDemo.social === "submitted" ? "Proof is in review" : "Share your signal"}</h3>{farmDemo.social === "available" ? <><label htmlFor="campaign-proof-url">Public post or community link</label><input id="campaign-proof-url" type="url" value={campaignProofUrl} onChange={(event) => setCampaignProofUrl(event.target.value)} placeholder="https://…" /><label htmlFor="campaign-participant-wallet">EVM wallet to receive Gems</label><input id="campaign-participant-wallet" type="text" value={campaignParticipantWallet} onChange={(event) => setCampaignParticipantWallet(event.target.value)} placeholder="0x…" spellCheck="false" /><button className="secondary-button" onClick={submitCampaignProof} disabled={!campaignProofUrl.trim()}>Submit for review</button></> : farmDemo.social === "submitted" ? <p>Submission received. The operator can review it from the Review Queue.</p> : <p className="campaign-proof-success"><i className="fa-solid fa-circle-check" aria-hidden="true" /> +20 Season Score awarded.{farmDemo.gems !== null ? <> <strong>+{farmDemo.gems} Gems confirmed on-chain.</strong> <a href={PORTALDOT_TESTNET_EXPLORER} target="_blank" rel="noreferrer">Open explorer</a></> : " Gems will appear after the operator signs the grant."}</p>}</section> : null}<div className="campaign-detail-note"><i className="fa-solid fa-shield-halved" aria-hidden="true" /><span>Campaign status, budget and reward are read from Campaign Registry. The operator signs the on-chain Gem grant after approval.</span></div></aside></div>
+      <div className="campaign-board-layout"><article className="campaign-card campaign-card-featured"><div className="campaign-art campaign-art-community"><i className="fa-solid fa-bullseye" aria-hidden="true" /></div><div className="campaign-card-body"><div className="campaign-meta"><span>Atlas-operated</span><em>{chainStatus}</em></div><h2>Build the first signal</h2><p>Complete one community action, submit the proof requested by this route and keep building visible Season Score.</p><div className="campaign-stats"><span><strong>{chainBudget}</strong> Gems budget</span><span><strong>{chainReward}</strong> base reward</span><span><strong>{chainDaysLeft === null ? "—" : `${chainDaysLeft}d`}</strong> remaining</span></div><button className="primary-button" onClick={() => setCampaignStarted(true)}><i className={`fa-solid ${campaignStarted ? "fa-check" : "fa-play"}`} aria-hidden="true" /> {campaignStarted ? "Campaign started" : "Start route"}</button></div></article><aside className="campaign-detail-panel"><p className="eyebrow">CAMPAIGN FLOW</p><h2>{campaignStarted ? "Your first mission is ready" : "One route, three clear steps"}</h2><ol className="campaign-step-list"><li className={campaignStarted ? "is-current" : ""}><b>01</b><span><strong>Community signal</strong><small>Complete the action and submit the proof requested by this route.</small></span><em>{farmDemo.social === "accepted" ? "Accepted" : farmDemo.social === "submitted" ? "In review" : campaignStarted ? "Ready" : "Next"}</em></li><li><b>02</b><span><strong>Reward boundary</strong><small>{chainPublished ? "The published campaign policy is readable from Portaldot V3." : "Campaign policy is being checked from Portaldot V3."}</small></span><em>{chainPublished ? "Published" : "Checking"}</em></li><li><b>03</b><span><strong>Sentinel mission</strong><small>Optional higher-signal proof for a later checkpoint.</small></span><em>Optional</em></li></ol>{campaignStarted ? <section className="campaign-proof-form" aria-label="Submit campaign proof"><p className="eyebrow">PROOF SUBMISSION</p><h3>{farmDemo.social === "accepted" ? "Proof accepted" : farmDemo.social === "submitted" ? "Proof is in review" : "Share your signal"}</h3>{farmDemo.social === "available" ? <><label htmlFor="campaign-proof-url">Public post or community link</label><input id="campaign-proof-url" type="url" value={campaignProofUrl} onChange={(event) => setCampaignProofUrl(event.target.value)} placeholder="https://…" /><label htmlFor="campaign-participant-wallet">EVM wallet to receive Gems</label><input id="campaign-participant-wallet" type="text" value={campaignParticipantWallet} onChange={(event) => setCampaignParticipantWallet(event.target.value)} placeholder="0x…" spellCheck="false" /><button className="secondary-button" onClick={submitCampaignProof} disabled={!campaignProofUrl.trim() || !isAddress(campaignParticipantWallet.trim())}>Submit for review</button>{campaignSubmissionError ? <p className="review-queue-error">{campaignSubmissionError}</p> : null}</> : farmDemo.social === "submitted" ? <p>Submission received in the shared operator queue. The operator can review it from any browser.</p> : <p className="campaign-proof-success"><i className="fa-solid fa-circle-check" aria-hidden="true" /> +20 Season Score awarded.{farmDemo.gems !== null ? <> <strong>+{farmDemo.gems} Gems confirmed on-chain.</strong> <a href={PORTALDOT_TESTNET_EXPLORER} target="_blank" rel="noreferrer">Open explorer</a></> : " Gems will appear after the operator signs the grant."}</p>}</section> : null}<div className="campaign-detail-note"><i className="fa-solid fa-shield-halved" aria-hidden="true" /><span>Campaign status, budget and reward are read from Campaign Registry. The operator signs the on-chain Gem grant after approval.</span></div></aside></div>
       <section className="campaign-principles panel"><div className="panel-heading"><div><p className="eyebrow">CAMPAIGN RULES</p><h2>What every route shows</h2></div><i className="fa-solid fa-map-location-dot large-icon" aria-hidden="true" /></div><div className="principle-grid"><span><i className="fa-solid fa-list-check" aria-hidden="true" /><strong>Exact steps</strong><small>One clear CTA per mission.</small></span><span><i className="fa-solid fa-shield-halved" aria-hidden="true" /><strong>Proof method</strong><small>Social, local review or Sentinel.</small></span><span><i className="fa-solid fa-coins" aria-hidden="true" /><strong>Reward boundary</strong><small>Score and Gems stay separate.</small></span></div></section>
     </section>;
   };

@@ -39,10 +39,15 @@ async function initializeSchema(client) {
       id UUID PRIMARY KEY,
       kind TEXT NOT NULL,
       recorded_at TIMESTAMPTZ NOT NULL,
-      payload JSONB NOT NULL
+      payload JSONB NOT NULL,
+      dedupe_key TEXT
     );
+    ALTER TABLE atlas_evidence ADD COLUMN IF NOT EXISTS dedupe_key TEXT;
     CREATE INDEX IF NOT EXISTS atlas_evidence_recorded_at_idx
       ON atlas_evidence (recorded_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS atlas_evidence_kind_dedupe_key_uq
+      ON atlas_evidence (kind, dedupe_key)
+      WHERE dedupe_key IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS atlas_sentinels (
       sentinel_id TEXT PRIMARY KEY,
@@ -94,6 +99,26 @@ async function initializeSchema(client) {
     );
     CREATE INDEX IF NOT EXISTS atlas_agent_incidents_status_idx
       ON atlas_agent_incidents (status, expires_at);
+
+    CREATE TABLE IF NOT EXISTS atlas_campaign_submissions (
+      id UUID PRIMARY KEY,
+      campaign_id TEXT NOT NULL,
+      campaign_title TEXT NOT NULL,
+      proof_url TEXT NOT NULL,
+      participant_wallet TEXT NOT NULL,
+      evidence_id TEXT,
+      commitment TEXT,
+      submitted_at TIMESTAMPTZ NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+      reward INTEGER NOT NULL DEFAULT 0,
+      reviewed_at TIMESTAMPTZ,
+      anchor_tx_hash TEXT,
+      review_tx_hash TEXT,
+      grant_tx_hash TEXT,
+      on_chain_balance NUMERIC
+    );
+    CREATE INDEX IF NOT EXISTS atlas_campaign_submissions_status_idx
+      ON atlas_campaign_submissions (status, submitted_at DESC);
   `);
   await client.query(`
     ALTER TABLE atlas_agent_incidents

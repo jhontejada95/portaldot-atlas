@@ -8,9 +8,11 @@ import { signProbeEvidence, verifyProbeEvidence } from "./signed-evidence.js";
 import { appendLiveEvidence, recentLiveEvidence } from "./evidence-store.js";
 import { assessIncident, reliabilityPolicyHash } from "./reliability-policy.js";
 import { publicKeyForSentinel, registerSentinel } from "./sentinel-registry.js";
-import { verifySentinelAttestation } from "./sentinel-attestation.js";
+import { sentinelObservationDigests, verifySentinelAttestation } from "./sentinel-attestation.js";
 import { claimSentinelLink, createSentinelLink, createWalletChallenge, initializeWalletAuth, revokeWalletSession, sentinelsForWallet, verifyWalletChallenge, walletForRequest, walletForSentinel } from "./wallet-auth.js";
 import { databaseEnabled } from "./database.js";
+import { applyAtlasCors } from "./cors.js";
+import { createCampaignSubmission, listCampaignSubmissions, updateCampaignSubmission } from "./campaign-store.js";
 
 dotenv.config({ path: process.env.ATLAS_ENV_FILE ?? ".env.local" });
 dotenv.config();
@@ -37,12 +39,7 @@ const app = express();
 await initializeWalletAuth();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "64kb" }));
-app.use((_request, response, next) => {
-  response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
+app.use(applyAtlasCors);
 app.options(/.*/, (_request, response) => response.sendStatus(204));
 const facilitator = new HTTPFacilitatorClient({ url: "https://x402.org/facilitator" });
 const resourceServer = new x402ResourceServer(facilitator).register(networkId, new ExactEvmScheme());
@@ -121,6 +118,63 @@ app.get("/v1/agent/status", async (_request, response, next) => {
       decision: assessIncident(verified),
       note: "This endpoint reports a deterministic gate. It does not initiate or settle an x402 payment.",
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Campaign submissions are shared operational state. The reward itself is only
+// considered final after the operator records the corresponding on-chain txs.
+app.get("/v1/campaign-submissions", async (request, response, next) => {
+  try {
+    const status = typeof request.query.status === "string" ? request.query.status : undefined;
+    if (status && !["pending", "approved", "rejected"].includes(status)) return response.status(400).json({ error: "invalid_campaign_submission_status" });
+    response.status(200).json({ submissions: await listCampaignSubmissions({ status }) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/v1/campaign-submissions", async (request, response, next) => {
+  try {
+    const body = request.body ?? {};
+    let proofUrl;
+    try { proofUrl = new URL(String(body.proofUrl ?? "")); } catch { return response.status(400).json({ error: "invalid_campaign_proof_url" }); }
+    if (!["http:", "https:"].includes(proofUrl.protocol)) return response.status(400).json({ error: "invalid_campaign_proof_url" });
+    if (!/^0x[a-fA-F0-9]{40}$/.test(String(body.participantWallet ?? ""))) return response.status(400).json({ error: "invalid_participant_wallet" });
+    if (!/^atlas-season-0$/.test(String(body.campaignId ?? ""))) return response.status(400).json({ error: "invalid_campaign_id" });
+    const submission = await createCampaignSubmission({
+      id: body.id,
+      campaignId: body.campaignId,
+      campaignTitle: String(body.campaignTitle ?? "Build the first signal").slice(0, 120),
+      proofUrl: proofUrl.toString(),
+      participantWallet: String(body.participantWallet),
+      evidenceId: typeof body.evidenceId === "string" ? body.evidenceId : null,
+      commitment: typeof body.commitment === "string" ? body.commitment : null,
+      reward: Math.max(1, Math.min(1000, Number(body.reward ?? 20))),
+    });
+    response.status(201).json({ submission });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/v1/campaign-submissions/:id", async (request, response, next) => {
+  try {
+    const body = request.body ?? {};
+    const patch = {};
+    if (body.status !== undefined) {
+      if (!["pending", "approved", "rejected"].includes(body.status)) return response.status(400).json({ error: "invalid_campaign_submission_status" });
+      patch.status = body.status;
+    }
+    for (const key of ["reviewedAt", "anchorTxHash", "reviewTxHash", "grantTxHash", "participantWallet"]) {
+      if (body[key] !== undefined && typeof body[key] !== "string") return response.status(400).json({ error: `invalid_${key}` });
+      if (body[key] !== undefined) patch[key] = body[key];
+    }
+    if (body.onChainBalance !== undefined) patch.onChainBalance = Number(body.onChainBalance);
+    const submission = await updateCampaignSubmission(request.params.id, patch);
+    if (!submission) return response.status(404).json({ error: "campaign_submission_not_found" });
+    response.status(200).json({ submission });
   } catch (error) {
     next(error);
   }
@@ -222,6 +276,7 @@ app.post("/v1/sentinel-observations", async (request, response, next) => {
     if (!await verifySentinelAttestation(envelope, publicKeyJwk)) {
       return response.status(401).json({ error: "invalid_sentinel_signature" });
     }
+    const digests = await sentinelObservationDigests(envelope);
     const record = await appendLiveEvidence("client_sentinel_observation", {
       sentinelId: envelope.sentinelId,
       wallet: await walletForSentinel(envelope.sentinelId),
@@ -231,9 +286,16 @@ app.post("/v1/sentinel-observations", async (request, response, next) => {
         scheme: "webcrypto-p256-sha256-v1",
         signature: envelope.signature,
         publicKeyJwk,
+        observationDigest: digests.observationDigest,
+        attestationDigest: digests.attestationDigest,
       },
+    }, { dedupeKey: digests.observationDigest });
+    response.status(record.deduplicated ? 200 : 201).json({
+      accepted: true,
+      evidenceId: record.id,
+      recordedAt: record.recordedAt,
+      ...(record.deduplicated ? { idempotentReplay: true } : {}),
     });
-    response.status(201).json({ accepted: true, evidenceId: record.id, recordedAt: record.recordedAt });
   } catch (error) {
     next(error);
   }
