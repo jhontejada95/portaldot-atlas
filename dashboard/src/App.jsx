@@ -8,15 +8,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { web3Accounts, web3AccountsSubscribe, web3Enable, web3FromSource } from "@polkadot/extension-dapp";
 import { stringToHex } from "@polkadot/util";
-import { createPublicClient, http, keccak256, toBytes } from "viem";
+import { createPublicClient, createWalletClient, custom, encodeFunctionData, http, isAddress, keccak256, toBytes } from "viem";
 import { verifyEvidenceRecord } from "./verify-evidence.js";
 import { atlasApi } from "./api.js";
 import { CampaignStudio } from "./CampaignStudio.jsx";
 import { PORTALDOT_V3 } from "./contract-deployments.js";
 import { campaignRegistryAbi } from "./campaign-registry-artifact.js";
+import { gemLedgerAbi } from "./gem-ledger-artifact.js";
 
 const CAMPAIGN_BOARD_ID = keccak256(toBytes("atlas-season-0"));
 const CAMPAIGN_BOARD_CLIENT = createPublicClient({ transport: http(PORTALDOT_V3.rpcUrl) });
+const CAMPAIGN_CHAIN = {
+  id: PORTALDOT_V3.chainId,
+  name: PORTALDOT_V3.name,
+  nativeCurrency: { name: "POT", symbol: "POT", decimals: 18 },
+  rpcUrls: { default: { http: [PORTALDOT_V3.rpcUrl] } },
+};
+const GEM_SEASON = 0n;
+const OPERATOR_EVM_ACCOUNT = "0x91ee4Cf394123153eB19ED7053A9FE9C4b7099A2";
+const GEM_GRANT_GAS = 2_000_000n;
+const PORTALDOT_TESTNET_EXPLORER = "https://scanner-testnet-v3.portaldot.dev/#/";
 
 const navigationGroups = [
   {
@@ -187,10 +198,12 @@ export function App() {
     return stored === "true" || (stored === null && window.matchMedia("(max-width: 680px)").matches);
   });
   const [verification, setVerification] = useState({});
-  const [farmDemo, setFarmDemo] = useState({ social: "available", score: 240, cache: null });
+  const [farmDemo, setFarmDemo] = useState({ social: "available", score: 240, cache: null, gems: null, grantTxHash: "" });
   const [campaignStarted, setCampaignStarted] = useState(false);
   const [campaignProofUrl, setCampaignProofUrl] = useState("");
+  const [campaignParticipantWallet, setCampaignParticipantWallet] = useState("");
   const [reviewQueue, setReviewQueue] = useState(() => readCampaignReviewQueue());
+  const [reviewAction, setReviewAction] = useState({});
   const [campaignChain, setCampaignChain] = useState({ state: "loading" });
   const [farmSlide, setFarmSlide] = useState(0);
   const [fieldLensHotspot, setFieldLensHotspot] = useState("community");
@@ -201,7 +214,7 @@ export function App() {
       setReviewQueue(nextQueue);
       if (!campaignProofUrl.trim()) return;
       const current = nextQueue.find((item) => item.proofUrl === campaignProofUrl.trim());
-      if (current?.status === "approved") setFarmDemo((stateValue) => ({ ...stateValue, social: "accepted", score: Math.max(stateValue.score, 260) }));
+      if (current?.status === "approved") setFarmDemo((stateValue) => ({ ...stateValue, social: "accepted", score: Math.max(stateValue.score, 260), gems: current.onChainBalance ?? stateValue.gems, grantTxHash: current.grantTxHash ?? stateValue.grantTxHash }));
       else if (current?.status === "pending") setFarmDemo((stateValue) => ({ ...stateValue, social: "submitted" }));
     };
     window.addEventListener("storage", syncReviewQueue);
@@ -471,7 +484,7 @@ export function App() {
     const existing = readCampaignReviewQueue().find((item) => item.proofUrl === proofUrl && item.campaignId === "atlas-season-0");
     if (!existing) {
       const queue = readCampaignReviewQueue();
-      queue.unshift({ id: crypto.randomUUID(), campaignId: "atlas-season-0", campaignTitle: "Build the first signal", proofUrl, submittedAt: new Date().toISOString(), status: "pending", reward: 20 });
+      queue.unshift({ id: crypto.randomUUID(), campaignId: "atlas-season-0", campaignTitle: "Build the first signal", proofUrl, participantWallet: isAddress(campaignParticipantWallet.trim()) ? campaignParticipantWallet.trim() : "", submittedAt: new Date().toISOString(), status: "pending", reward: 20 });
       writeCampaignReviewQueue(queue);
     }
     setFarmDemo((current) => current.social === "available" ? { ...current, social: "submitted" } : current);
@@ -480,6 +493,42 @@ export function App() {
     const queue = readCampaignReviewQueue().map((item) => item.id === reviewId ? { ...item, status, reviewedAt: new Date().toISOString() } : item);
     writeCampaignReviewQueue(queue);
     setReviewQueue(queue);
+  };
+  const updateReviewRecipient = (reviewId, participantWallet) => {
+    const queue = readCampaignReviewQueue().map((item) => item.id === reviewId ? { ...item, participantWallet } : item);
+    writeCampaignReviewQueue(queue);
+    setReviewQueue(queue);
+  };
+  const grantCampaignGems = async (reviewItem) => {
+    const participantWallet = reviewItem.participantWallet?.trim();
+    if (!isAddress(participantWallet)) {
+      setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "error", message: "Añade una wallet EVM válida del participante antes de otorgar Gems." } }));
+      return;
+    }
+    const injected = window.rabby || window.ethereum;
+    if (!injected) {
+      setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "error", message: "No detecté Rabby en este navegador." } }));
+      return;
+    }
+    try {
+      setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "signing" } }));
+      const operatorWallet = createWalletClient({ chain: CAMPAIGN_CHAIN, transport: custom(injected) });
+      const [operatorAddress] = await operatorWallet.requestAddresses();
+      const detectedChain = await operatorWallet.getChainId();
+      if (operatorAddress.toLowerCase() !== OPERATOR_EVM_ACCOUNT.toLowerCase()) throw new Error("Conecta la wallet operadora 0x91… antes de aprobar la recompensa.");
+      if (detectedChain !== PORTALDOT_V3.chainId) throw new Error(`Rabby está en Chain ID ${detectedChain}. Cambia a ${PORTALDOT_V3.chainId}.`);
+      const data = encodeFunctionData({ abi: gemLedgerAbi, functionName: "grant", args: [GEM_SEASON, participantWallet, BigInt(reviewItem.reward)] });
+      const hash = await injected.request({ method: "eth_sendTransaction", params: [{ from: operatorAddress, to: PORTALDOT_V3.contracts.gemLedger, data, value: "0x0", gas: `0x${GEM_GRANT_GAS.toString(16)}` }] });
+      setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirming", hash } }));
+      await CAMPAIGN_BOARD_CLIENT.waitForTransactionReceipt({ hash });
+      const onChainBalance = await CAMPAIGN_BOARD_CLIENT.readContract({ address: PORTALDOT_V3.contracts.gemLedger, abi: gemLedgerAbi, functionName: "balanceOf", args: [GEM_SEASON, participantWallet] });
+      const queue = readCampaignReviewQueue().map((item) => item.id === reviewItem.id ? { ...item, status: "approved", reviewedAt: new Date().toISOString(), grantTxHash: hash, onChainBalance: Number(onChainBalance) } : item);
+      writeCampaignReviewQueue(queue);
+      setReviewQueue(queue);
+      setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirmed", hash, onChainBalance: Number(onChainBalance) } }));
+    } catch (grantError) {
+      setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "error", message: grantError?.shortMessage || grantError?.message || "No se pudo otorgar Gems en cadena." } }));
+    }
   };
 
   const renderOverview = () => <>
@@ -571,15 +620,15 @@ export function App() {
     const chainReward = campaignChain.state === "ready" ? `+${campaignChain.maxPerWallet.toString()}` : "—";
     const chainDaysLeft = campaignChain.state === "ready" ? Math.max(0, Math.ceil((Number(campaignChain.endsAt) * 1000 - Date.now()) / 86400000)) : null;
     return <section className="page-section campaign-page">
-    <div className="campaign-board-head"><div><p className="eyebrow">SEASON ZERO · CAMPAIGN BOARD</p><h1>Echo Week · First Signals</h1><p className="lede">A finite Atlas-operated campaign. Start here, complete the community proof, then unlock the next route when its evidence is ready.</p></div><button className="secondary-button campaign-back" onClick={() => setActive("farm")}><i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back to Season Route</button></div>
-    <div className="campaign-board-layout"><article className="campaign-card campaign-card-featured"><div className="campaign-art campaign-art-community"><i className="fa-solid fa-bullseye" aria-hidden="true" /></div><div className="campaign-card-body"><div className="campaign-meta"><span>Atlas-operated</span><em>{chainStatus}</em></div><h2>Build the first signal</h2><p>Complete one community action, submit the proof requested by this route and keep building visible Season Score.</p><div className="campaign-stats"><span><strong>{chainBudget}</strong> Gems budget</span><span><strong>{chainReward}</strong> base reward</span><span><strong>{chainDaysLeft === null ? "—" : `${chainDaysLeft}d`}</strong> remaining</span></div><button className="primary-button" onClick={() => setCampaignStarted(true)}><i className={`fa-solid ${campaignStarted ? "fa-check" : "fa-play"}`} aria-hidden="true" /> {campaignStarted ? "Campaign started" : "Start route"}</button></div></article><aside className="campaign-detail-panel"><p className="eyebrow">CAMPAIGN FLOW</p><h2>{campaignStarted ? "Your first mission is ready" : "One route, three clear steps"}</h2><ol className="campaign-step-list"><li className={campaignStarted ? "is-current" : ""}><b>01</b><span><strong>Community signal</strong><small>Complete the action and submit the proof requested by this route.</small></span><em>{farmDemo.social === "accepted" ? "Accepted" : farmDemo.social === "submitted" ? "In review" : campaignStarted ? "Ready" : "Next"}</em></li><li><b>02</b><span><strong>Reward boundary</strong><small>{chainPublished ? "The published campaign policy is readable from Portaldot V3." : "Campaign policy is being checked from Portaldot V3."}</small></span><em>{chainPublished ? "Published" : "Checking"}</em></li><li><b>03</b><span><strong>Sentinel mission</strong><small>Optional higher-signal proof for a later checkpoint.</small></span><em>Optional</em></li></ol>{campaignStarted ? <section className="campaign-proof-form" aria-label="Submit campaign proof"><p className="eyebrow">PROOF SUBMISSION</p><h3>{farmDemo.social === "accepted" ? "Proof accepted" : farmDemo.social === "submitted" ? "Proof is in review" : "Share your signal"}</h3>{farmDemo.social === "available" ? <><label htmlFor="campaign-proof-url">Public post or community link</label><input id="campaign-proof-url" type="url" value={campaignProofUrl} onChange={(event) => setCampaignProofUrl(event.target.value)} placeholder="https://…" /><button className="secondary-button" onClick={submitCampaignProof} disabled={!campaignProofUrl.trim()}>Submit for review</button></> : farmDemo.social === "submitted" ? <p>Submission received. The operator can review it from the Review Queue.</p> : <p className="campaign-proof-success"><i className="fa-solid fa-circle-check" aria-hidden="true" /> +20 Season Score awarded.</p>}</section> : null}<div className="campaign-detail-note"><i className="fa-solid fa-shield-halved" aria-hidden="true" /><span>Campaign status, budget and reward are read from Campaign Registry. Proof review is a separate participant step and does not request a wallet signature.</span></div></aside></div>
-    <section className="campaign-principles panel"><div className="panel-heading"><div><p className="eyebrow">CAMPAIGN RULES</p><h2>What every route shows</h2></div><i className="fa-solid fa-map-location-dot large-icon" aria-hidden="true" /></div><div className="principle-grid"><span><i className="fa-solid fa-list-check" aria-hidden="true" /><strong>Exact steps</strong><small>One clear CTA per mission.</small></span><span><i className="fa-solid fa-shield-halved" aria-hidden="true" /><strong>Proof method</strong><small>Social, local review or Sentinel.</small></span><span><i className="fa-solid fa-coins" aria-hidden="true" /><strong>Reward boundary</strong><small>Score and Gems stay separate.</small></span></div></section>
-  </section>;
+      <div className="campaign-board-head"><div><p className="eyebrow">SEASON ZERO · CAMPAIGN BOARD</p><h1>Echo Week · First Signals</h1><p className="lede">A finite Atlas-operated campaign. Start here, complete the community proof, then unlock the next route when its evidence is ready.</p></div><button className="secondary-button campaign-back" onClick={() => setActive("farm")}><i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back to Season Route</button></div>
+      <div className="campaign-board-layout"><article className="campaign-card campaign-card-featured"><div className="campaign-art campaign-art-community"><i className="fa-solid fa-bullseye" aria-hidden="true" /></div><div className="campaign-card-body"><div className="campaign-meta"><span>Atlas-operated</span><em>{chainStatus}</em></div><h2>Build the first signal</h2><p>Complete one community action, submit the proof requested by this route and keep building visible Season Score.</p><div className="campaign-stats"><span><strong>{chainBudget}</strong> Gems budget</span><span><strong>{chainReward}</strong> base reward</span><span><strong>{chainDaysLeft === null ? "—" : `${chainDaysLeft}d`}</strong> remaining</span></div><button className="primary-button" onClick={() => setCampaignStarted(true)}><i className={`fa-solid ${campaignStarted ? "fa-check" : "fa-play"}`} aria-hidden="true" /> {campaignStarted ? "Campaign started" : "Start route"}</button></div></article><aside className="campaign-detail-panel"><p className="eyebrow">CAMPAIGN FLOW</p><h2>{campaignStarted ? "Your first mission is ready" : "One route, three clear steps"}</h2><ol className="campaign-step-list"><li className={campaignStarted ? "is-current" : ""}><b>01</b><span><strong>Community signal</strong><small>Complete the action and submit the proof requested by this route.</small></span><em>{farmDemo.social === "accepted" ? "Accepted" : farmDemo.social === "submitted" ? "In review" : campaignStarted ? "Ready" : "Next"}</em></li><li><b>02</b><span><strong>Reward boundary</strong><small>{chainPublished ? "The published campaign policy is readable from Portaldot V3." : "Campaign policy is being checked from Portaldot V3."}</small></span><em>{chainPublished ? "Published" : "Checking"}</em></li><li><b>03</b><span><strong>Sentinel mission</strong><small>Optional higher-signal proof for a later checkpoint.</small></span><em>Optional</em></li></ol>{campaignStarted ? <section className="campaign-proof-form" aria-label="Submit campaign proof"><p className="eyebrow">PROOF SUBMISSION</p><h3>{farmDemo.social === "accepted" ? "Proof accepted" : farmDemo.social === "submitted" ? "Proof is in review" : "Share your signal"}</h3>{farmDemo.social === "available" ? <><label htmlFor="campaign-proof-url">Public post or community link</label><input id="campaign-proof-url" type="url" value={campaignProofUrl} onChange={(event) => setCampaignProofUrl(event.target.value)} placeholder="https://…" /><label htmlFor="campaign-participant-wallet">EVM wallet to receive Gems</label><input id="campaign-participant-wallet" type="text" value={campaignParticipantWallet} onChange={(event) => setCampaignParticipantWallet(event.target.value)} placeholder="0x…" spellCheck="false" /><button className="secondary-button" onClick={submitCampaignProof} disabled={!campaignProofUrl.trim()}>Submit for review</button></> : farmDemo.social === "submitted" ? <p>Submission received. The operator can review it from the Review Queue.</p> : <p className="campaign-proof-success"><i className="fa-solid fa-circle-check" aria-hidden="true" /> +20 Season Score awarded.{farmDemo.gems !== null ? <> <strong>+{farmDemo.gems} Gems confirmed on-chain.</strong> <a href={PORTALDOT_TESTNET_EXPLORER} target="_blank" rel="noreferrer">Open explorer</a></> : " Gems will appear after the operator signs the grant."}</p>}</section> : null}<div className="campaign-detail-note"><i className="fa-solid fa-shield-halved" aria-hidden="true" /><span>Campaign status, budget and reward are read from Campaign Registry. The operator signs the on-chain Gem grant after approval.</span></div></aside></div>
+      <section className="campaign-principles panel"><div className="panel-heading"><div><p className="eyebrow">CAMPAIGN RULES</p><h2>What every route shows</h2></div><i className="fa-solid fa-map-location-dot large-icon" aria-hidden="true" /></div><div className="principle-grid"><span><i className="fa-solid fa-list-check" aria-hidden="true" /><strong>Exact steps</strong><small>One clear CTA per mission.</small></span><span><i className="fa-solid fa-shield-halved" aria-hidden="true" /><strong>Proof method</strong><small>Social, local review or Sentinel.</small></span><span><i className="fa-solid fa-coins" aria-hidden="true" /><strong>Reward boundary</strong><small>Score and Gems stay separate.</small></span></div></section>
+    </section>;
   };
 
   const renderReviewQueue = () => {
     const pending = reviewQueue.filter((item) => item.status === "pending").length;
-    return <section className="page-section review-queue-page"><div className="intro-row compact"><div><p className="eyebrow">B2B · OPERATOR TOOLS</p><h1>Review Queue</h1><p className="lede narrow">Review participant proof before awarding campaign Score. This queue is synchronized between Atlas tabs in this browser and never asks the participant for a wallet signature.</p></div><span className="review-queue-count"><strong>{pending}</strong> pending</span></div>{reviewQueue.length ? <div className="review-queue-list">{reviewQueue.map((item) => <article className={`review-queue-card status-${item.status}`} key={item.id}><div className="review-queue-card-head"><div><p className="eyebrow">{item.campaignTitle}</p><h2>{item.status === "pending" ? "Community signal" : item.status === "approved" ? "Proof approved" : "Proof rejected"}</h2></div><span className="quest-status">{item.status === "pending" ? "Pending review" : item.status}</span></div><a href={item.proofUrl} target="_blank" rel="noreferrer">{item.proofUrl}</a><div className="review-queue-meta"><span>Submitted {formatTime(item.submittedAt)}</span><span>Reward +{item.reward} Score</span>{item.reviewedAt ? <span>Reviewed {formatTime(item.reviewedAt)}</span> : null}</div>{item.status === "pending" ? <div className="review-queue-actions"><button className="primary-button" onClick={() => decideCampaignProof(item.id, "approved")}><i className="fa-solid fa-check" aria-hidden="true" /> Approve proof</button><button className="secondary-button" onClick={() => decideCampaignProof(item.id, "rejected")}><i className="fa-solid fa-xmark" aria-hidden="true" /> Reject</button></div> : <p className="review-queue-result"><i className={`fa-solid ${item.status === "approved" ? "fa-circle-check" : "fa-circle-xmark"}`} aria-hidden="true" /> Decision recorded for this browser session.</p>}</article>)}</div> : <EmptyState icon="fa-inbox" title="The review queue is empty">When a participant submits a proof from Campaign Board, it will appear here for operator review.</EmptyState>}<div className="campaign-detail-note"><i className="fa-solid fa-arrows-rotate" aria-hidden="true" /><span>Open Campaign Board and Review Queue in separate tabs to record the complete demo flow.</span></div></section>;
+    return <section className="page-section review-queue-page"><div className="intro-row compact"><div><p className="eyebrow">B2B · OPERATOR TOOLS</p><h1>Review Queue</h1><p className="lede narrow">Review participant proof, then sign the real Gem grant from the operator wallet. The reward is read back from GemLedger after confirmation.</p></div><span className="review-queue-count"><strong>{pending}</strong> pending</span></div>{reviewQueue.length ? <div className="review-queue-list">{reviewQueue.map((item) => { const action = reviewAction[item.id]; return <article className={`review-queue-card status-${item.status}`} key={item.id}><div className="review-queue-card-head"><div><p className="eyebrow">{item.campaignTitle}</p><h2>{item.status === "pending" ? "Community signal" : item.status === "approved" ? "Proof approved" : "Proof rejected"}</h2></div><span className="quest-status">{item.status === "pending" ? "Pending review" : item.status}</span></div><a href={item.proofUrl} target="_blank" rel="noreferrer">{item.proofUrl}</a><div className="review-queue-meta"><span>Submitted {formatTime(item.submittedAt)}</span><span>Reward +{item.reward} Score</span>{item.reviewedAt ? <span>Reviewed {formatTime(item.reviewedAt)}</span> : null}</div>{item.status === "pending" ? <div className="review-queue-actions"><label htmlFor={`review-wallet-${item.id}`}>Participant EVM wallet</label><input id={`review-wallet-${item.id}`} type="text" value={item.participantWallet ?? ""} onChange={(event) => updateReviewRecipient(item.id, event.target.value)} placeholder="0x…" spellCheck="false" /><button className="primary-button" onClick={() => grantCampaignGems(item)} disabled={action?.state === "signing" || action?.state === "confirming"}><i className="fa-solid fa-gem" aria-hidden="true" /> {action?.state === "signing" ? "Waiting for Rabby" : action?.state === "confirming" ? "Confirming on-chain" : "Approve + grant Gems"}</button><button className="secondary-button" onClick={() => decideCampaignProof(item.id, "rejected")}><i className="fa-solid fa-xmark" aria-hidden="true" /> Reject</button>{action?.state === "error" ? <p className="review-queue-error">{action.message}</p> : null}</div> : <div className="review-queue-result"><i className={`fa-solid ${item.status === "approved" ? "fa-circle-check" : "fa-circle-xmark"}`} aria-hidden="true" /><span>{item.status === "approved" && item.grantTxHash ? <>Gems granted on-chain: <strong>{item.onChainBalance}</strong>. <a href={PORTALDOT_TESTNET_EXPLORER} target="_blank" rel="noreferrer">Open explorer</a><code>{item.grantTxHash}</code></> : item.status === "approved" ? "Approved locally; no on-chain grant was recorded for this item." : "Decision recorded."}</span></div>}</article>; })}</div> : <EmptyState icon="fa-inbox" title="The review queue is empty">When a participant submits a proof from Campaign Board, it will appear here for operator review.</EmptyState>}<div className="campaign-detail-note"><i className="fa-solid fa-arrows-rotate" aria-hidden="true" /><span>Use Campaign Board in the participant browser and this queue in the operator browser. The grant is signed once by the operator wallet and can then be checked in the explorer.</span></div></section>;
   };
 
   const renderComingSoon = (title, detail) => <section className="page-section coming-page"><div className="coming-hero"><span className="coming-icon"><i className="fa-solid fa-compass-drafting" aria-hidden="true" /></span><p className="eyebrow">COMING SOON · LOCAL PREVIEW</p><h1>{title}</h1><p className="lede">{detail}</p><span className="coming-soon-note"><i className="fa-solid fa-lock" aria-hidden="true" /> Hidden until the policy and V3 prerequisites are verified.</span></div></section>;
