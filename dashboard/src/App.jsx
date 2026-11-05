@@ -566,7 +566,10 @@ export function App() {
       if (operatorAddress.toLowerCase() !== OPERATOR_EVM_ACCOUNT.toLowerCase()) throw new Error("Conecta la wallet operadora 0x91… antes de aprobar la recompensa.");
       if (detectedChain !== PORTALDOT_V3.chainId) throw new Error(`Rabby está en Chain ID ${detectedChain}. Cambia a ${PORTALDOT_V3.chainId}.`);
       const data = encodeFunctionData({ abi: gemLedgerAbi, functionName: "grant", args: [GEM_SEASON, participantWallet, BigInt(reviewItem.reward)] });
-      grantHash = await injected.request({ method: "eth_sendTransaction", params: [{ from: operatorAddress, to: PORTALDOT_V3.contracts.gemLedger, data, value: "0x0", gas: `0x${GEM_GRANT_GAS.toString(16)}` }] });
+      // Portaldot V3 rejects under-specified custom-network transactions. Match
+      // the other working contract flows by sending an explicit gas price.
+      const gasPrice = await CAMPAIGN_BOARD_CLIENT.getGasPrice();
+      grantHash = await injected.request({ method: "eth_sendTransaction", params: [{ from: operatorAddress, to: PORTALDOT_V3.contracts.gemLedger, data, value: "0x0", gas: `0x${GEM_GRANT_GAS.toString(16)}`, gasPrice: `0x${(gasPrice + gasPrice / 10n).toString(16)}` }] });
       setReviewAction((current) => ({ ...current, [reviewItem.id]: { state: "confirming", hash: grantHash } }));
       await CAMPAIGN_BOARD_CLIENT.waitForTransactionReceipt({ hash: grantHash });
       const onChainBalance = await CAMPAIGN_BOARD_CLIENT.readContract({ address: PORTALDOT_V3.contracts.gemLedger, abi: gemLedgerAbi, functionName: "balanceOf", args: [GEM_SEASON, participantWallet] });
